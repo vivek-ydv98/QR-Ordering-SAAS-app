@@ -32,7 +32,7 @@ graph TD
     D & E & F & G & H -->|Realtime Channels| K["Socket.IO Client Manager"]
 
     %% Edge API Interceptors
-    I -->|Axios Agent (lib/api.ts)| L["NestJS API Gateway"]
+    I -->|Axios Agent - lib/api.ts| L["NestJS API Gateway"]
     L -->|X-Tenant-ID Header Routing| M["Multi-Tenant PostgreSQL Database"]
     K -->|WebSocket Tunnel| N["NestJS Socket.IO Gateways"]
 ```
