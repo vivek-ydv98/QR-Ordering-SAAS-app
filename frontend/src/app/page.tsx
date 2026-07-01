@@ -46,7 +46,7 @@ export default function SaasProductHub() {
     },
     {
       title: 'Super Admin Control Panel',
-      description: 'ROOT control panel to configure multi-tenant feature flags, analyze global revenues, and check audit logs.',
+      description: 'ROOT control panel to configure multi-tenant feature flags, track global orders placed today, and check audit logs.',
       icon: Shield,
       tag: 'Platform Provider App',
       links: [{ label: 'Open Root Control Panel', path: '/super-admin', color: 'bg-slate-700 hover:bg-slate-800' }],

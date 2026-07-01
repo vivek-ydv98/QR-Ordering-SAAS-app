@@ -32,6 +32,48 @@ export class RestaurantsService {
   }
 
   /**
+   * Fetch global statistics for Super Admin
+   */
+  async getSuperAdminStats() {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const totalOrdersToday = await this.prisma.client.order.count({
+      where: {
+        createdAt: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+    });
+
+    const ordersByRestaurant = await this.prisma.client.order.groupBy({
+      by: ['restaurantId'],
+      where: {
+        createdAt: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    return {
+      totalOrdersToday,
+      ordersByRestaurant: ordersByRestaurant.map(item => ({
+        restaurantId: item.restaurantId,
+        count: item._count.id
+      }))
+    };
+  }
+
+
+  /**
    * Create a new restaurant and initialize its settings
    */
   async createRestaurant(data: {

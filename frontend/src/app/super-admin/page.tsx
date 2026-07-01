@@ -7,7 +7,7 @@ import {
   ShieldAlert, Database, Layers, Server, Activity, Plus,
   Power, RefreshCw, LogOut, Copy, Check, User, Mail,
   Phone, MapPin, Globe, Loader2, AlertCircle, CheckCircle, Lock, Edit3,
-  QrCode, Printer, Download, Upload, RefreshCw as RotateCcw
+  QrCode, Printer, Download, Upload, RefreshCw as RotateCcw, ShoppingBag
 } from 'lucide-react';
 import api from '../../lib/api';
 import { useToastStore } from '../../store/useToastStore';
@@ -89,11 +89,11 @@ const generateQrDataUrl = async (url: string, fgColor: string, bgColor: string, 
 };
 
 const printBulkQrCodes = async (
-  tables: any[], 
-  restaurantName: string, 
+  tables: any[],
+  restaurantName: string,
   restaurantSlug: string,
-  fgColor: string, 
-  bgColor: string, 
+  fgColor: string,
+  bgColor: string,
   logoUrl?: string | null
 ) => {
   const printWindow = window.open('', '_blank');
@@ -322,9 +322,8 @@ function TableQrCard({
           <div className="flex flex-col gap-1 mt-2">
             <div className="flex items-center gap-1.5 text-[10px]">
               <span className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[8px]">Scope:</span>
-              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                table.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-              }`}>
+              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${table.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                }`}>
                 {table.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
@@ -336,9 +335,8 @@ function TableQrCard({
             </div>
             <div className="flex items-center gap-1.5 text-[10px]">
               <span className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[8px]">QR Type:</span>
-              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                table.qrCodeUrl ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20' : 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
-              }`}>
+              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${table.qrCodeUrl ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20' : 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
+                }`}>
                 {table.qrCodeUrl ? 'Custom' : 'System'}
               </span>
             </div>
@@ -422,12 +420,35 @@ export default function SuperAdminPanel() {
   const router = useRouter();
   const [restaurants, setRestaurants] = useState<DBRestaurant[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [metrics, setMetrics] = useState({
-    totalRevenue: 2489000, // mock revenue, but others will be dynamic
+  const [metrics, setMetrics] = useState<{
+    totalOrdersToday: number;
+    activeRestaurants: number;
+    activeTables: number;
+    ordersByRestaurant: { restaurantId: string; count: number }[];
+  }>({
+    totalOrdersToday: 0,
     activeRestaurants: 0,
     activeTables: 0,
-    avgPrepTimeMinutes: 14.5,
+    ordersByRestaurant: [],
   });
+
+  const [detailsModal, setDetailsModal] = useState<{
+    isOpen: boolean;
+    type: 'orders' | 'restaurants' | 'tables' | null;
+    title: string;
+  }>({
+    isOpen: false,
+    type: null,
+    title: '',
+  });
+
+  const handleCardClick = (type: 'orders' | 'restaurants' | 'tables', title: string) => {
+    setDetailsModal({
+      isOpen: true,
+      type,
+      title,
+    });
+  };
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -552,24 +573,28 @@ export default function SuperAdminPanel() {
   const fetchData = async () => {
     setIsRefreshing(true);
     try {
-      const [resRestaurants, resAuditLogs] = await Promise.all([
+      const [resRestaurants, resAuditLogs, resStats] = await Promise.all([
         api.get('/restaurants'),
-        api.get('/audit-logs')
+        api.get('/audit-logs'),
+        api.get('/restaurants/super-admin/stats')
       ]);
 
       const fetchedRestaurants = resRestaurants.data as DBRestaurant[];
       setRestaurants(fetchedRestaurants);
       setAuditLogs(resAuditLogs.data as AuditLog[]);
 
+      const stats = resStats.data as { totalOrdersToday: number; ordersByRestaurant: { restaurantId: string; count: number }[] };
+
       // Compute metrics
       const activeCount = fetchedRestaurants.filter(r => r.isActive).length;
       const tablesCount = fetchedRestaurants.reduce((sum, r) => sum + (r._count?.tables || 0), 0);
 
-      setMetrics(prev => ({
-        ...prev,
+      setMetrics({
+        totalOrdersToday: stats.totalOrdersToday,
         activeRestaurants: activeCount,
         activeTables: tablesCount,
-      }));
+        ordersByRestaurant: stats.ordersByRestaurant || [],
+      });
 
       setIsLoading(false);
     } catch (err) {
@@ -896,7 +921,7 @@ export default function SuperAdminPanel() {
       const fgColor = settings?.qrFgColor || '#000000';
       const bgColor = settings?.qrBgColor || '#ffffff';
       const logoUrl = settings?.qrLogoUrl;
-      
+
       const zip = new JSZip();
       const origin = window.location.origin;
 
@@ -927,10 +952,10 @@ export default function SuperAdminPanel() {
   };
 
   const handleDownloadSingleQr = async (
-    table: any, 
-    restaurantSlug: string, 
-    fgColor: string, 
-    bgColor: string, 
+    table: any,
+    restaurantSlug: string,
+    fgColor: string,
+    bgColor: string,
     logoUrl?: string | null
   ) => {
     let qrDataUrl = '';
@@ -993,21 +1018,40 @@ export default function SuperAdminPanel() {
       </header>
 
       {/* Global Analytics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Total Revenue Processed', value: `₹${metrics.totalRevenue.toLocaleString('en-IN')}`, icon: Server },
-          { label: 'Onboarded Restaurants', value: restaurants.length, icon: Layers },
-          { label: 'Total Active Tables', value: metrics.activeTables, icon: Database },
-          { label: 'Avg Network Prep Time', value: `${metrics.avgPrepTimeMinutes} Mins`, icon: Activity },
-        ].map((m, idx) => (
-          <div key={idx} className="bg-slate-900 border border-slate-850 p-4 rounded-xl flex items-center justify-between shadow-md">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{m.label}</p>
-              <h3 className="text-lg font-black text-white mt-1">{m.value}</h3>
+          { label: 'Total Orders Today', value: metrics.totalOrdersToday, icon: ShoppingBag, onClick: () => handleCardClick('orders', 'Orders Placed Today') },
+          { label: 'Onboarded Restaurants', value: restaurants.length, icon: Layers, onClick: () => handleCardClick('restaurants', 'Onboarded Restaurant Names') },
+          { label: 'Total Active Tables', value: metrics.activeTables, icon: Database, onClick: () => handleCardClick('tables', 'Active Tables per Restaurant') },
+        ].map((m, idx) => {
+          const CardContent = (
+            <>
+              <div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{m.label}</p>
+                <h3 className="text-lg font-black text-white mt-1">{m.value}</h3>
+              </div>
+              <m.icon className="w-6 h-6 text-primary" />
+            </>
+          );
+
+          if (m.onClick) {
+            return (
+              <button
+                key={idx}
+                onClick={m.onClick}
+                className="bg-slate-900 border border-slate-850 p-4 rounded-xl flex items-center justify-between shadow-md hover:bg-slate-850 hover:border-slate-750 transition-all text-left w-full active:scale-[0.98] cursor-pointer"
+              >
+                {CardContent}
+              </button>
+            );
+          }
+
+          return (
+            <div key={idx} className="bg-slate-900 border border-slate-850 p-4 rounded-xl flex items-center justify-between shadow-md">
+              {CardContent}
             </div>
-            <m.icon className="w-6 h-6 text-primary" />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1828,7 +1872,7 @@ export default function SuperAdminPanel() {
                     {selectedRestaurant.name} (Limit: {restaurantTables.length} / {selectedRestaurant.maxTables || 10} tables)
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsTablesModalOpen(false)}
                   className="text-slate-500 hover:text-slate-300 font-bold text-xs"
                 >
@@ -1948,6 +1992,80 @@ export default function SuperAdminPanel() {
                   type="button"
                   onClick={() => setIsTablesModalOpen(false)}
                   className="bg-slate-950 border border-slate-800 hover:bg-slate-900 text-xs px-4 py-2 rounded-lg font-bold text-slate-400 hover:text-white transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Details Modal Overlay */}
+      <AnimatePresence>
+        {detailsModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 relative overflow-hidden"
+            >
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+                <h3 className="text-sm font-black text-white">
+                  {detailsModal.title}
+                </h3>
+                <button
+                  onClick={() => setDetailsModal({ isOpen: false, type: null, title: '' })}
+                  className="text-slate-400 hover:text-white transition-colors text-sm font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-2 font-sans">
+                {restaurants.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">No data available.</p>
+                ) : (
+                  restaurants.map((r) => {
+                    if (detailsModal.type === 'orders') {
+                      const count = metrics.ordersByRestaurant.find(o => o.restaurantId === r.id)?.count || 0;
+                      return (
+                        <div key={r.id} className="flex justify-between items-center bg-slate-950 border border-slate-850/60 p-3 rounded-xl">
+                          <span className="text-xs font-bold text-slate-200">{r.name}</span>
+                          <span className="text-xs font-black text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full">
+                            {count} {count === 1 ? 'order' : 'orders'} today
+                          </span>
+                        </div>
+                      );
+                    }
+                    if (detailsModal.type === 'restaurants') {
+                      return (
+                        <div key={r.id} className="bg-slate-950 border border-slate-850/60 p-3 rounded-xl">
+                          <span className="text-xs font-bold text-slate-200">{r.name}</span>
+                        </div>
+                      );
+                    }
+                    if (detailsModal.type === 'tables') {
+                      const tables = r._count?.tables || 0;
+                      return (
+                        <div key={r.id} className="flex justify-between items-center bg-slate-950 border border-slate-850/60 p-3 rounded-xl">
+                          <span className="text-xs font-bold text-slate-200">{r.name}</span>
+                          <span className="text-xs font-black text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full">
+                            {tables} {tables === 1 ? 'table' : 'tables'}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })
+                )}
+              </div>
+
+              <div className="flex justify-end mt-5 pt-3 border-t border-slate-800">
+                <button
+                  onClick={() => setDetailsModal({ isOpen: false, type: null, title: '' })}
+                  className="bg-slate-950 border border-slate-800 hover:bg-slate-900 text-xs px-4 py-2 rounded-lg font-bold text-slate-300 transition-colors cursor-pointer"
                 >
                   Close
                 </button>

@@ -20,6 +20,14 @@ export class RestaurantsController {
     return this.restaurantsService.getAllRestaurants();
   }
 
+  @Get('super-admin/stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN')
+  getSuperAdminStats() {
+    return this.restaurantsService.getSuperAdminStats();
+  }
+
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN')

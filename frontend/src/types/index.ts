@@ -120,8 +120,8 @@ export interface WaiterCall {
 }
 
 export interface PlatformMetrics {
-  totalRevenue: number;
+  totalOrdersToday: number;
   activeRestaurants: number;
   activeTables: number;
-  avgPrepTimeMinutes: number;
+  ordersByRestaurant?: { restaurantId: string; count: number }[];
 }

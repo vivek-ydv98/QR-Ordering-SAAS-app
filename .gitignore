@@ -2,30 +2,28 @@
 # Environment & Secrets
 # ========================
 .env
+.env.local
 .env.*
 !.env.example
-!.env.sample
 
 # ========================
 # Dependencies
 # ========================
 node_modules/
-.pnp
-.pnp.js
+backend/node_modules/
+frontend/node_modules/
 
 # ========================
 # Build Outputs
 # ========================
 dist/
+backend/dist/
 build/
 .next/
+frontend/.next/
 out/
-
-# ========================
-# Prisma
-# ========================
-# Keep schema, ignore generated client if desired
-# prisma/generated/
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
 
 # ========================
 # Logs
@@ -35,7 +33,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 logs/
 
 # ========================
@@ -50,21 +47,5 @@ Thumbs.db
 # ========================
 .vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# ========================
-# Testing
-# ========================
-coverage/
-.nyc_output
-
-# ========================
-# Misc
-# ========================
-*.tsbuildinfo
-.turbo/
-.vercel/
+*.swp
+*.swo
