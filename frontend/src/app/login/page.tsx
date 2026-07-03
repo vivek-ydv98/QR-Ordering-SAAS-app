@@ -13,11 +13,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   // Loading & notification states
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
   // Prepopulate email if remember me was checked in a previous session
   useEffect(() => {
@@ -32,16 +35,27 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    // Simple validation
-    if (!email || !password) {
-      setErrorMsg('Please fill in all fields');
-      setIsLoading(false);
+    // Email validation
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setEmailError('Email address is required.');
       return;
     }
+    if (!isValidEmail(trimmedEmail)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+    setEmailError(null);
+
+    if (!password) {
+      setErrorMsg('Please enter your password.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -156,13 +170,21 @@ export default function LoginPage() {
               </span>
               <input
                 type="email"
-                required
                 disabled={isLoading}
                 placeholder="name@restaurant.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-50"
+                onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }}
+                className={`w-full bg-slate-950/50 border rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 transition-all disabled:opacity-50 ${
+                  emailError
+                    ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/20'
+                    : 'border-slate-800 focus:border-primary/50 focus:ring-primary/20'
+                }`}
               />
+              {emailError && (
+                <p className="flex items-center gap-1 mt-1.5 text-[11px] text-red-400 font-semibold">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {emailError}
+                </p>
+              )}
             </div>
           </div>
 

@@ -83,6 +83,7 @@ export default function ProfilePage() {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail]       = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const [newPassword,     setNewPassword]     = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -93,6 +94,8 @@ export default function ProfilePage() {
   const [success,       setSuccess]       = useState<string | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [pwdLoading,    setPwdLoading]    = useState(false);
+
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
   const strength       = getPasswordStrength(newPassword);
   const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
@@ -118,7 +121,11 @@ export default function ProfilePage() {
   const handleUpdateDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     clearMessages();
-    if (!fullName.trim() || !email.trim()) { setError('Full Name and Email are required.'); return; }
+    setEmailError(null);
+    if (!fullName.trim()) { setError('Full name is required.'); return; }
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) { setEmailError('Email address is required.'); return; }
+    if (!isValidEmail(trimmedEmail)) { setEmailError('Please enter a valid email address.'); return; }
     try {
       setSubmitLoading(true);
       const res = await api.patch('/staff/profile/me', { fullName, email });
@@ -280,12 +287,18 @@ export default function ProfilePage() {
                 <input
                   id="profile-email"
                   type="email"
-                  required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }}
                   placeholder="you@restaurant.com"
-                  className={`${inputCls} pl-9`}
+                  className={`${inputCls} pl-9 ${
+                    emailError ? 'border-red-500/50 focus:border-red-500/70 focus:ring-red-500/10' : ''
+                  }`}
                 />
+                {emailError && (
+                  <p className="flex items-center gap-1 mt-1.5 text-[11px] text-red-400 font-semibold">
+                    <AlertCircle size={11} className="shrink-0" /> {emailError}
+                  </p>
+                )}
               </div>
             </div>
 

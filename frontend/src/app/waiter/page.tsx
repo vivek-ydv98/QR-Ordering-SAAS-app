@@ -105,12 +105,6 @@ export default function WaiterDashboard() {
                 if (table.status === 'OCCUPIED') {
                   statusBg = 'bg-primary/5 border-primary/20';
                   badgeColor = 'bg-primary text-primary-foreground';
-                } else if (table.status === 'WAITING_BILL') {
-                  statusBg = 'bg-amber-500/5 border-amber-500/20';
-                  badgeColor = 'bg-amber-500 text-slate-950';
-                } else if (table.status === 'DIRTY') {
-                  statusBg = 'bg-rose-500/5 border-rose-500/20';
-                  badgeColor = 'bg-rose-500 text-white';
                 }
 
                 return (
@@ -125,8 +119,8 @@ export default function WaiterDashboard() {
                     {/* Actions Selector */}
                     <div className="mt-4 flex flex-col gap-1.5">
                       <label className="text-[8px] text-slate-500 font-bold uppercase">Change Status</label>
-                      <div className="grid grid-cols-3 gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
-                        {(['VACANT', 'OCCUPIED', 'DIRTY'] as const).map(st => (
+                      <div className="grid grid-cols-2 gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
+                        {(['VACANT', 'OCCUPIED'] as const).map(st => (
                           <button
                             key={st}
                             onClick={() => handleUpdateStatus(table.id, st)}

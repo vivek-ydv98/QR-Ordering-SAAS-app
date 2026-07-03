@@ -62,6 +62,9 @@ export default function StaffPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
 
+  // Email validation helper
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -77,6 +80,7 @@ export default function StaffPage() {
   const [copied, setCopied] = useState(false);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [createFormErrors, setCreateFormErrors] = useState<{ fullName?: string; email?: string; password?: string }>({});
+  const [editFormErrors, setEditFormErrors] = useState<{ email?: string }>({});
 
   // Selected records
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
@@ -139,7 +143,11 @@ export default function StaffPage() {
 
     const fieldErrors: { fullName?: string; email?: string; password?: string } = {};
     if (!createForm.fullName.trim()) fieldErrors.fullName = 'Employee name is required.';
-    if (!createForm.email.trim()) fieldErrors.email = 'Email address is required.';
+    if (!createForm.email.trim()) {
+      fieldErrors.email = 'Email address is required.';
+    } else if (!isValidEmail(createForm.email)) {
+      fieldErrors.email = 'Please enter a valid email address.';
+    }
     if (!createForm.password.trim()) fieldErrors.password = 'Password is required.';
     else if (createForm.password.length < 6) fieldErrors.password = 'Password must be at least 6 characters.';
 
@@ -180,6 +188,7 @@ export default function StaffPage() {
 
   const handleOpenEdit = (staff: Staff) => {
     setSelectedStaff(staff);
+    setEditFormErrors({});
     setEditForm({
       fullName: staff.user.fullName,
       email: staff.user.email,
@@ -193,7 +202,18 @@ export default function StaffPage() {
   const handleEditStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setEditFormErrors({});
     if (!selectedStaff) return;
+
+    // Email validation
+    if (!editForm.email.trim()) {
+      setEditFormErrors({ email: 'Email address is required.' });
+      return;
+    }
+    if (!isValidEmail(editForm.email)) {
+      setEditFormErrors({ email: 'Please enter a valid email address.' });
+      return;
+    }
 
     try {
       setSubmitLoading(true);
@@ -416,8 +436,21 @@ export default function StaffPage() {
       ) : filteredStaff.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-slate-800 rounded-xl text-slate-500">
           <Users className="w-10 h-10 mb-2 text-slate-600 animate-pulse" />
-          <p className="text-sm font-bold text-slate-400">No staff members found</p>
-          <p className="text-xs text-slate-500 mt-1">Get started by creating your first employee profile.</p>
+          {searchTerm.trim() || roleFilter !== 'ALL' ? (
+            <>
+              <p className="text-sm font-bold text-slate-400">No staff members match your search</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">
+                {searchTerm.trim()
+                  ? <>No results for &quot;<span className="text-slate-300">{searchTerm}</span>&quot;. Try a different name, email, or clear the filter.</>
+                  : 'No staff members match the selected role filter. Try a different role.'}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-bold text-slate-400">No staff members yet</p>
+              <p className="text-xs text-slate-500 mt-1">Get started by creating your first employee profile.</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
@@ -545,7 +578,7 @@ export default function StaffPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateStaff} className="p-6 space-y-4" autoComplete="off">
+            <form onSubmit={handleCreateStaff} className="p-6 space-y-4" autoComplete="off" noValidate>
 
               {/* Full Name */}
               <div className="space-y-1">
@@ -714,12 +747,18 @@ export default function StaffPage() {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email Address *</label>
                 <input
                   type="email"
-                  required
                   placeholder="email@address.com"
                   value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-650 outline-none focus:border-emerald-500 transition-all"
+                  onChange={(e) => { setEditForm({ ...editForm, email: e.target.value }); if (editFormErrors.email) setEditFormErrors(prev => ({ ...prev, email: undefined })); }}
+                  className={`w-full bg-slate-950 border rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-650 outline-none transition-all ${
+                    editFormErrors.email ? 'border-red-500/60 focus:border-red-500' : 'border-slate-800 focus:border-emerald-500'
+                  }`}
                 />
+                {editFormErrors.email && (
+                  <p className="text-[10px] text-red-400 flex items-center gap-1 pt-0.5">
+                    <AlertCircle size={10} /> {editFormErrors.email}
+                  </p>
+                )}
               </div>
 
               {/* Role */}

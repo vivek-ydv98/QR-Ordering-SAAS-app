@@ -126,8 +126,7 @@ const printBulkQrCodes = async (
           <div class="restaurant-name">${restaurantName}</div>
           <div class="table-name">${table.name}</div>
           <img class="qr-img" src="${qrDataUrl}" alt="${table.name} QR Code" />
-          <div class="scan-instructions">Scan to Order & Pay</div>
-          <div class="table-url">${origin}/r/${restaurantSlug}/table/${table.id}</div>
+          <div class="scan-instructions">Scan to Order</div>
         </div>
       `;
     })
@@ -189,13 +188,7 @@ const printBulkQrCodes = async (
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
-          .table-url {
-            margin-top: 5px;
-            font-size: 8px;
-            color: #888;
-            word-break: break-all;
-            max-width: 180px;
-          }
+
           @media print {
             body {
               padding: 0;
@@ -291,11 +284,9 @@ function RestaurantTableCard({
             <div className="flex items-center gap-1.5 text-[10px]">
               <span className="text-slate-550 font-bold uppercase tracking-wider shrink-0 text-[8px]">Status:</span>
               <span className={`inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                table.status === 'VACANT' 
-                  ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-                  : table.status === 'OCCUPIED'
-                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                table.status === 'VACANT'
+                  ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                  : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
               }`}>
                 {table.status}
               </span>
@@ -439,7 +430,6 @@ export default function TablesPage() {
   const { tenantId } = useDashboard();
 
   const [tables, setTables] = useState<any[]>([]);
-  const [maxTables, setMaxTables] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -467,7 +457,6 @@ export default function TablesPage() {
         api.get(`/restaurants/by-id/${tenantId}`)
       ]);
       setTables(resTables.data || []);
-      setMaxTables(resRestaurant.data?.maxTables ?? 10);
       setRestaurantName(resRestaurant.data?.name || '');
       setRestaurantSlug(resRestaurant.data?.slug || '');
       const settings = resRestaurant.data?.restaurantSettings || {};
@@ -567,8 +556,6 @@ export default function TablesPage() {
   );
 
   const activeCount = tables.filter(t => t.isActive).length;
-  const totalCount = tables.length;
-  const usagePercentage = Math.min((totalCount / maxTables) * 100, 100);
 
   return (
     <div className="p-4 md:p-6 space-y-6 bg-slate-950 min-h-screen font-sans">
@@ -586,19 +573,15 @@ export default function TablesPage() {
             Monitor allocated tables and toggle active status for QR ordering.
           </p>
         </div>
-      </header>
-
-      {/* Info notice about roles */}
-      <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-xl flex gap-3 text-xs text-slate-300">
-        <Info className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-bold text-white">Role-Based Access Enforcement</p>
-          <p>
-            Only the Super Admin has permission to create, edit, or delete tables. 
-            As a Restaurant Admin, you can monitor allocated tables and toggle their activation status to allow or block order placement.
-          </p>
+        {/* Live Active Stat — compact header pill */}
+        <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 shrink-0 self-start sm:self-auto">
+          <Database className="w-5 h-5 text-primary opacity-80" />
+          <div className="flex flex-col">
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider leading-none">Live Active</span>
+            <span className="text-xl font-black text-white leading-tight">{activeCount} <span className="text-xs text-slate-500 font-normal">tables</span></span>
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Action Banners */}
       {success && (
@@ -612,34 +595,6 @@ export default function TablesPage() {
         </div>
       )}
 
-      {/* Stats and Limit Overview Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 border border-slate-850 p-5 rounded-xl flex flex-col justify-between shadow-md md:col-span-2 space-y-4">
-          <div>
-            <div className="flex justify-between items-center text-xs text-slate-400 font-bold mb-2">
-              <span>TABLE ALLOCATION BUDGET</span>
-              <span>{totalCount} / {maxTables} Tables Created</span>
-            </div>
-            <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-              <div 
-                className="bg-primary h-full transition-all duration-500" 
-                style={{ width: `${usagePercentage}%` }}
-              />
-            </div>
-          </div>
-          <p className="text-[10px] text-slate-500">
-            To adjust your dining table allocation capacity, please contact customer support or the Super Admin.
-          </p>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-850 p-5 rounded-xl flex items-center justify-between shadow-md">
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Live Active Dining</span>
-            <h3 className="text-2xl font-black text-white">{activeCount} <span className="text-xs text-slate-500 font-normal">Active</span></h3>
-          </div>
-          <Database className="w-8 h-8 text-primary opacity-80" />
-        </div>
-      </div>
 
       {/* Search and Bulk Actions Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -691,10 +646,21 @@ export default function TablesPage() {
       ) : filteredTables.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-slate-800 rounded-xl text-slate-500">
           <Database className="w-10 h-10 mb-2 text-slate-600" />
-          <p className="text-sm font-bold text-slate-400">No tables allocated yet</p>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">
-            Ask the Super Admin to configure and add tables for your restaurant in the platform operator panel.
-          </p>
+          {searchTerm.trim() ? (
+            <>
+              <p className="text-sm font-bold text-slate-400">No tables match your search</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">
+                No tables found for &quot;<span className="text-slate-300">{searchTerm}</span>&quot;. Try a different name or clear the search.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-bold text-slate-400">No tables allocated yet</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm text-center">
+                Ask the Super Admin to configure and add tables for your restaurant in the platform operator panel.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

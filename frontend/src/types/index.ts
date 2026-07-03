@@ -87,7 +87,7 @@ export interface CartItem {
 export interface Table {
   id: string;
   name: string; // e.g. "Table 3" or "T3"
-  status: 'VACANT' | 'OCCUPIED' | 'WAITING_BILL' | 'DIRTY';
+  status: 'VACANT' | 'OCCUPIED';
   currentSessionId?: string;
 }
 
