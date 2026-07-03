@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Loader2, 
+import {
+  Plus,
+  Search,
+  Loader2,
   AlertCircle,
   Check,
   Users,
@@ -15,7 +15,9 @@ import {
   ToggleRight,
   ShieldAlert,
   Clock,
-  UserCheck
+  UserCheck,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useDashboard } from '../DashboardContext';
 import api from '../../../../lib/api';
@@ -64,10 +66,17 @@ export default function StaffPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
-  
+
+  // Reset password confirm modal
+  const [resetTarget, setResetTarget] = useState<Staff | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+
   // Temporary credentials popup state
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [tempPasswordUser, setTempPasswordUser] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [createFormErrors, setCreateFormErrors] = useState<{ fullName?: string; email?: string; password?: string }>({});
 
   // Selected records
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
@@ -127,7 +136,18 @@ export default function StaffPage() {
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!createForm.fullName.trim() || !createForm.email.trim()) return;
+
+    const fieldErrors: { fullName?: string; email?: string; password?: string } = {};
+    if (!createForm.fullName.trim()) fieldErrors.fullName = 'Employee name is required.';
+    if (!createForm.email.trim()) fieldErrors.email = 'Email address is required.';
+    if (!createForm.password.trim()) fieldErrors.password = 'Password is required.';
+    else if (createForm.password.length < 6) fieldErrors.password = 'Password must be at least 6 characters.';
+
+    if (Object.keys(fieldErrors).length > 0) {
+      setCreateFormErrors(fieldErrors);
+      return;
+    }
+    setCreateFormErrors({});
 
     try {
       setSubmitLoading(true);
@@ -135,7 +155,7 @@ export default function StaffPage() {
         fullName: createForm.fullName,
         email: createForm.email,
         role: createForm.role,
-        password: createForm.password || undefined,
+        password: createForm.password,
         isAvailable: createForm.isAvailable
       });
 
@@ -198,18 +218,26 @@ export default function StaffPage() {
     }
   };
 
-  const handleResetPassword = async (staff: Staff) => {
-    if (!window.confirm(`Are you sure you want to reset the password for ${staff.user.fullName}?`)) return;
-    
+  const handleResetPassword = (staff: Staff) => {
+    setResetTarget(staff);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!resetTarget) return;
     try {
+      setIsResetting(true);
       setError(null);
-      const res = await api.post(`/staff/${staff.id}/reset-password`);
-      setTempPasswordUser(staff.user.fullName);
+      const res = await api.post(`/staff/${resetTarget.id}/reset-password`);
+      setTempPasswordUser(resetTarget.user.fullName);
       setTempPassword(res.data.temporaryPassword);
+      setResetTarget(null);
     } catch (err: any) {
       console.error('Error resetting password:', err);
       setError('Failed to reset staff password.');
       setTimeout(() => setError(null), 4000);
+      setResetTarget(null);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -219,7 +247,7 @@ export default function StaffPage() {
       const nextActiveState = !staff.user.isActive;
 
       // Optimistic update
-      setStaffList(prev => prev.map(s => 
+      setStaffList(prev => prev.map(s =>
         s.id === staff.id ? { ...s, user: { ...s.user, isActive: nextActiveState } } : s
       ));
 
@@ -233,7 +261,7 @@ export default function StaffPage() {
       console.error('Error toggling active status:', err);
       setError('Failed to update account status.');
       // Rollback
-      setStaffList(prev => prev.map(s => 
+      setStaffList(prev => prev.map(s =>
         s.id === staff.id ? { ...s, user: { ...s.user, isActive: staff.user.isActive } } : s
       ));
       setTimeout(() => setError(null), 3000);
@@ -246,7 +274,7 @@ export default function StaffPage() {
       const nextAvailability = !staff.isAvailable;
 
       // Optimistic update
-      setStaffList(prev => prev.map(s => 
+      setStaffList(prev => prev.map(s =>
         s.id === staff.id ? { ...s, isAvailable: nextAvailability } : s
       ));
 
@@ -260,7 +288,7 @@ export default function StaffPage() {
       console.error('Error toggling availability:', err);
       setError('Failed to update availability.');
       // Rollback
-      setStaffList(prev => prev.map(s => 
+      setStaffList(prev => prev.map(s =>
         s.id === staff.id ? { ...s, isAvailable: staff.isAvailable } : s
       ));
       setTimeout(() => setError(null), 3000);
@@ -311,15 +339,15 @@ export default function StaffPage() {
   }
 
   const filteredStaff = staffList.filter(s => {
-    const matchesSearch = s.user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          s.user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = s.user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'ALL' || s.user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
   return (
     <div className="p-4 md:p-6 space-y-6 bg-slate-950 min-h-screen">
-      
+
       {/* Page Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
@@ -374,7 +402,6 @@ export default function StaffPage() {
             className="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
           >
             <option value="ALL">All Roles</option>
-            <option value="RESTAURANT_ADMIN">Restaurant Admin</option>
             <option value="MANAGER">Manager</option>
             <option value="CASHIER">Cashier</option>
             <option value="KITCHEN_STAFF">Kitchen Staff</option>
@@ -407,7 +434,7 @@ export default function StaffPage() {
             <tbody className="divide-y divide-slate-800/50">
               {filteredStaff.map((staff) => (
                 <tr key={staff.id} className="hover:bg-slate-800/20 transition-all text-slate-300">
-                  
+
                   {/* Employee Info */}
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
@@ -437,11 +464,10 @@ export default function StaffPage() {
                   <td className="py-3 px-4 text-center">
                     <button
                       onClick={() => handleToggleAvailability(staff)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black border transition-all ${
-                        staff.isAvailable
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                          : 'bg-slate-800 text-slate-500 border-slate-700'
-                      }`}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black border transition-all ${staff.isAvailable
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-slate-800 text-slate-500 border-slate-700'
+                        }`}
                     >
                       {staff.isAvailable ? 'Available' : 'Resting'}
                     </button>
@@ -474,7 +500,7 @@ export default function StaffPage() {
                       >
                         <History className="w-3.5 h-3.5" />
                       </button>
-                      
+
                       {/* Reset Password */}
                       <button
                         onClick={() => handleResetPassword(staff)}
@@ -506,12 +532,12 @@ export default function StaffPage() {
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-zoomIn">
-            
+
             <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-sm font-black text-white flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-emerald-400" /> Create Employee Account
               </h3>
-              <button 
+              <button
                 onClick={() => setIsCreateOpen(false)}
                 className="text-slate-500 hover:text-slate-300 font-bold text-xs"
               >
@@ -519,32 +545,52 @@ export default function StaffPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateStaff} className="p-6 space-y-4">
-              
+            <form onSubmit={handleCreateStaff} className="p-6 space-y-4" autoComplete="off">
+
               {/* Full Name */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Employee Name *</label>
                 <input
                   type="text"
-                  required
+                  autoComplete="off"
                   placeholder="e.g. Rahul Sharma"
                   value={createForm.fullName}
-                  onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-emerald-500 transition-all"
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, fullName: e.target.value });
+                    if (createFormErrors.fullName) setCreateFormErrors(prev => ({ ...prev, fullName: undefined }));
+                  }}
+                  className={`w-full bg-slate-950 border rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all ${
+                    createFormErrors.fullName ? 'border-red-500/60 focus:border-red-500' : 'border-slate-800 focus:border-emerald-500'
+                  }`}
                 />
+                {createFormErrors.fullName && (
+                  <p className="text-[10px] text-red-400 flex items-center gap-1 pt-0.5">
+                    <AlertCircle size={10} /> {createFormErrors.fullName}
+                  </p>
+                )}
               </div>
 
               {/* Email */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Email Address *</label>
                 <input
                   type="email"
-                  required
-                  placeholder="राहुल@tandoori.com"
+                  autoComplete="off"
+                  placeholder="example@gmail.com"
                   value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-emerald-500 transition-all"
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, email: e.target.value });
+                    if (createFormErrors.email) setCreateFormErrors(prev => ({ ...prev, email: undefined }));
+                  }}
+                  className={`w-full bg-slate-950 border rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none transition-all ${
+                    createFormErrors.email ? 'border-red-500/60 focus:border-red-500' : 'border-slate-800 focus:border-emerald-500'
+                  }`}
                 />
+                {createFormErrors.email && (
+                  <p className="text-[10px] text-red-400 flex items-center gap-1 pt-0.5">
+                    <AlertCircle size={10} /> {createFormErrors.email}
+                  </p>
+                )}
               </div>
 
               {/* Role */}
@@ -563,15 +609,35 @@ export default function StaffPage() {
               </div>
 
               {/* Password */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Password (Optional)</label>
-                <input
-                  type="password"
-                  placeholder="Auto-generated if left blank"
-                  value={createForm.password}
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-emerald-500 transition-all"
-                />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Password *</label>
+                <div className="relative">
+                  <input
+                    type={showCreatePassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="Min. 6 characters"
+                    value={createForm.password}
+                    onChange={(e) => {
+                      setCreateForm({ ...createForm, password: e.target.value });
+                      if (createFormErrors.password) setCreateFormErrors(prev => ({ ...prev, password: undefined }));
+                    }}
+                    className={`w-full bg-slate-950 border rounded-lg px-3 py-2.5 pr-10 text-xs text-white placeholder-slate-600 outline-none transition-all ${
+                      createFormErrors.password ? 'border-red-500/60 focus:border-red-500' : 'border-slate-800 focus:border-emerald-500'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePassword(!showCreatePassword)}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    {showCreatePassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                {createFormErrors.password && (
+                  <p className="text-[10px] text-red-400 flex items-center gap-1 pt-0.5">
+                    <AlertCircle size={10} /> {createFormErrors.password}
+                  </p>
+                )}
               </div>
 
               {/* Availability Toggle */}
@@ -615,12 +681,12 @@ export default function StaffPage() {
       {isEditOpen && selectedStaff && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-zoomIn">
-            
+
             <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-sm font-black text-white flex items-center gap-1.5">
                 <Edit className="w-4 h-4 text-emerald-400" /> Edit Employee Details
               </h3>
-              <button 
+              <button
                 onClick={() => setIsEditOpen(false)}
                 className="text-slate-500 hover:text-slate-300 font-bold text-xs"
               >
@@ -629,7 +695,7 @@ export default function StaffPage() {
             </div>
 
             <form onSubmit={handleEditStaff} className="p-6 space-y-4">
-              
+
               {/* Full Name */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Employee Name *</label>
@@ -735,12 +801,12 @@ export default function StaffPage() {
       {isActivityOpen && selectedStaff && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn">
-            
+
             <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-sm font-black text-white flex items-center gap-1.5">
                 <History className="w-4 h-4 text-emerald-400" /> Activity History: {selectedStaff.user.fullName}
               </h3>
-              <button 
+              <button
                 onClick={() => setIsActivityOpen(false)}
                 className="text-slate-500 hover:text-slate-300 font-bold text-xs"
               >
@@ -763,7 +829,7 @@ export default function StaffPage() {
                     <div key={log.id} className="relative space-y-1">
                       {/* Timeline dot */}
                       <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900 flex items-center justify-center shadow-inner"></span>
-                      
+
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-white bg-slate-950 px-2 py-0.5 rounded border border-slate-850">
                           {log.action}
@@ -794,45 +860,121 @@ export default function StaffPage() {
         </div>
       )}
 
-      {/* Modal: Temp Password / Reset Credentials display */}
+      {/* ── Modal: Confirm Password Reset ─────────────────────────── */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <Key className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white">Reset Password?</h3>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  A new temporary password will be generated for{' '}
+                  <span className="text-white font-bold">{resetTarget.user.fullName}</span>.
+                  Their current password will be invalidated immediately.
+                </p>
+              </div>
+            </div>
+
+            {/* Warning strip */}
+            <div className="mx-6 mb-5 flex items-start gap-2.5 bg-amber-500/[0.07] border border-amber-500/20 rounded-xl px-4 py-3">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                Make sure the staff member is not currently logged in before resetting.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2.5 px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setResetTarget(null)}
+                disabled={isResetting}
+                className="flex-1 py-2.5 text-xs font-bold border border-slate-700 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <ButtonLoader
+                loading={isResetting}
+                onClick={confirmResetPassword}
+                className="flex-1 py-2.5 text-xs font-black bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-lg shadow-amber-500/20"
+              >
+                Yes, Reset Password
+              </ButtonLoader>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Temp Password Reveal ───────────────────────────── */}
       {tempPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-zoomIn">
-            
-            <div className="px-6 py-5 bg-slate-950 border-b border-slate-800 text-center">
-              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-2">
-                🗝️
-              </span>
-              <h3 className="text-sm font-black text-white">Temporary Security Password</h3>
-              <p className="text-[10px] text-slate-500 mt-1">Please copy these login credentials for the employee.</p>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
 
-            <div className="p-6 space-y-4">
-              <div className="space-y-1 bg-slate-950 p-4 border border-slate-850 rounded-lg text-center select-all cursor-pointer">
-                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Employee Profile</p>
-                <p className="text-xs text-white font-extrabold">{tempPasswordUser}</p>
-                <div className="h-px bg-slate-850 my-2"></div>
-                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Temporary Password</p>
-                <p className="text-lg text-emerald-400 font-black tracking-wider">{tempPassword}</p>
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <ShieldAlert className="w-5 h-5 text-emerald-400" />
               </div>
-
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-[10px] rounded-lg text-center leading-relaxed">
-                ⚠️ **Security Warning**: This password is shown only once. Make sure to copy it before closing this window.
+              <div>
+                <h3 className="text-sm font-black text-white">Password Reset Successful</h3>
+                <p className="text-xs text-slate-400 mt-1">New temporary credentials for{' '}
+                  <span className="text-white font-bold">{tempPasswordUser}</span>
+                </p>
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex">
+            {/* Password box */}
+            <div className="mx-6 mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 text-center">Temporary Password</p>
+              <div className="flex items-center gap-2 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3">
+                <span className="flex-1 text-center text-lg font-black tracking-widest text-emerald-400 select-all">
+                  {tempPassword}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempPassword);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${copied
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                    }`}
+                >
+                  {copied ? <><Check className="w-3.5 h-3.5" /> Copied!</> : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="mx-6 mb-5 flex items-start gap-2.5 bg-rose-500/[0.07] border border-rose-500/20 rounded-xl px-4 py-3">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-rose-300/80 leading-relaxed">
+                This password is shown <span className="font-bold text-rose-300">only once</span>. Copy it now and share securely with the employee.
+              </p>
+            </div>
+
+            {/* Done button */}
+            <div className="px-6 pb-6">
               <button
                 type="button"
                 onClick={() => {
                   setTempPassword(null);
                   setTempPasswordUser(null);
-                  setSuccess('Credentials set successfully.');
+                  setCopied(false);
+                  setSuccess('Password reset. New credentials ready for staff.');
                   setTimeout(() => setSuccess(null), 3000);
                 }}
-                className="w-full py-2.5 text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all"
+                className="w-full py-2.5 text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/20"
               >
-                I have copied the password
+                Done — I've copied the password
               </button>
             </div>
 
