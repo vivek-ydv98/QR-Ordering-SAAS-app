@@ -104,6 +104,19 @@ export default function MenuPage() {
   const [newAddonName, setNewAddonName] = useState('');
   const [newAddonPrice, setNewAddonPrice] = useState('');
 
+  // Custom Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -235,24 +248,28 @@ export default function MenuPage() {
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = (id: string) => {
     if (!isAdmin) return;
-    if (!window.confirm('Are you sure you want to delete this menu item? This action is permanent.')) return;
-
-    try {
-      await api.delete(`/menu-items/${id}`);
-      setSuccess('Menu item deleted successfully.');
-      
-      const updatedList = items.filter(item => item.id !== id);
-      setItems(updatedList);
-      setSelectedItem(updatedList[0] || null);
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      console.error('Error deleting item:', err);
-      setError('Failed to delete menu item.');
-      setTimeout(() => setError(null), 4000);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Menu Item',
+      message: 'Are you sure you want to delete this menu item? This action is permanent.',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/menu-items/${id}`);
+          setSuccess('Menu item deleted successfully.');
+          const updatedList = items.filter(item => item.id !== id);
+          setItems(updatedList);
+          setSelectedItem(updatedList[0] || null);
+          setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+          console.error('Error deleting item:', err);
+          setError(err.response?.data?.message || 'Failed to delete menu item.');
+          setTimeout(() => setError(null), 4000);
+        }
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleToggleItemStatus = async (item: MenuItem, field: 'isAvailable' | 'isFeatured' | 'isBestseller') => {
@@ -305,20 +322,26 @@ export default function MenuPage() {
     }
   };
 
-  const handleDeleteVariant = async (vId: string) => {
+  const handleDeleteVariant = (vId: string) => {
     if (!selectedItem) return;
-    if (!window.confirm('Delete this variant?')) return;
-
-    try {
-      await api.delete(`/variants/${vId}`);
-      setSuccess('Variant removed.');
-      fetchSingleItem(selectedItem.id);
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      console.error('Error deleting variant:', err);
-      setError('Failed to delete variant.');
-      setTimeout(() => setError(null), 3000);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Portion Variant',
+      message: 'Delete this variant?',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/variants/${vId}`);
+          setSuccess('Variant removed.');
+          fetchSingleItem(selectedItem.id);
+          setTimeout(() => setSuccess(null), 3000);
+        } catch (err) {
+          console.error('Error deleting variant:', err);
+          setError('Failed to delete variant.');
+          setTimeout(() => setError(null), 3000);
+        }
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   // --- Addons Management (Admin Only) ---
@@ -344,20 +367,26 @@ export default function MenuPage() {
     }
   };
 
-  const handleDeleteAddon = async (aId: string) => {
+  const handleDeleteAddon = (aId: string) => {
     if (!selectedItem) return;
-    if (!window.confirm('Delete this add-on?')) return;
-
-    try {
-      await api.delete(`/addons/${aId}`);
-      setSuccess('Add-on removed.');
-      fetchSingleItem(selectedItem.id);
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      console.error('Error deleting add-on:', err);
-      setError('Failed to delete add-on.');
-      setTimeout(() => setError(null), 3000);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Add-on Modifier',
+      message: 'Delete this add-on?',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/addons/${aId}`);
+          setSuccess('Add-on removed.');
+          fetchSingleItem(selectedItem.id);
+          setTimeout(() => setSuccess(null), 3000);
+        } catch (err) {
+          console.error('Error deleting add-on:', err);
+          setError('Failed to delete add-on.');
+          setTimeout(() => setError(null), 3000);
+        }
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const filteredItems = items.filter(item => {
@@ -873,11 +902,10 @@ export default function MenuPage() {
               </div>
             )}
           </div>
-
         </div>
       )}
 
-      {/* Modal: Add Menu Item */}
+          {/* Modal: Add Menu Item */}
       {isOpenCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn">
@@ -903,7 +931,7 @@ export default function MenuPage() {
                     placeholder="e.g. Paneer Tikka Multani"
                     value={itemFormData.name}
                     onChange={(e) => setItemFormData({ ...itemFormData, name: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-600 outline-none focus:border-emerald-500 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-655 outline-none focus:border-emerald-500 transition-all"
                   />
                 </div>
 
@@ -939,7 +967,7 @@ export default function MenuPage() {
                     placeholder="Price"
                     value={itemFormData.price}
                     onChange={(e) => setItemFormData({ ...itemFormData, price: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-650 outline-none focus:border-emerald-500 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-655 outline-none focus:border-emerald-500 transition-all"
                   />
                 </div>
 
@@ -951,7 +979,7 @@ export default function MenuPage() {
                     placeholder="Discount Price"
                     value={itemFormData.discountPrice}
                     onChange={(e) => setItemFormData({ ...itemFormData, discountPrice: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-650 outline-none focus:border-emerald-500 transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-white placeholder-slate-655 outline-none focus:border-emerald-500 transition-all"
                   />
                 </div>
 
@@ -1039,6 +1067,43 @@ export default function MenuPage() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-zoomIn">
+            <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="text-sm font-black text-white">{confirmDialog.title}</h3>
+              <button 
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                className="text-slate-500 hover:text-slate-300 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-300 leading-relaxed">{confirmDialog.message}</p>
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 py-2 text-xs font-bold border border-slate-800 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  id="confirm-action-btn"
+                  onClick={confirmDialog.onConfirm}
+                  className="flex-1 py-2 text-xs font-black bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

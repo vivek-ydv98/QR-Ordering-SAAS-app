@@ -250,6 +250,10 @@ export class RestaurantsService {
         menuItems: {
           where: includeUnavailable ? {} : { isAvailable: true },
           orderBy: { name: 'asc' },
+          include: {
+            variants: true,
+            addons: true,
+          },
         },
       },
     });

@@ -232,10 +232,12 @@ export default function RestaurantAdminDashboard() {
     setWaiterCalls(prev => prev.filter(c => c.id !== callId));
   };
 
-  const handleGenerateQR = React.useCallback(async () => {
+  const handleGenerateQR = React.useCallback(async (showErrorIfEmpty = true) => {
     const formattedId = qrTableId.trim().toLowerCase();
     if (!formattedId) {
-      setQrError('Table ID cannot be empty.');
+      if (showErrorIfEmpty) {
+        setQrError('Table ID cannot be empty.');
+      }
       setQrCodeDataUrl('');
       setQrResolvedUrl('');
       return;
@@ -265,7 +267,7 @@ export default function RestaurantAdminDashboard() {
   // Auto-generate initial QR Code when slug is ready
   useEffect(() => {
     if (restaurantSlug) {
-      handleGenerateQR();
+      handleGenerateQR(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantSlug]);
@@ -489,125 +491,137 @@ export default function RestaurantAdminDashboard() {
           </div>
 
           {/* KOT Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredKots.map(kot => {
-              // Age border colors
-              const isLate = kot.elapsedMinutes >= 15;
-              const isWarning = kot.elapsedMinutes >= 10 && kot.elapsedMinutes < 15;
+          {filteredKots.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 px-4 bg-slate-900/10 border border-dashed border-slate-800/80 rounded-xl">
+              <ShoppingCart className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
+              <p className="text-xs font-bold text-slate-400">No active KOTs found</p>
+              <p className="text-[10px] text-slate-500 mt-1 text-center max-w-xs leading-relaxed">
+                {statusFilter === 'ALL'
+                  ? 'No active orders in the kitchen. New customer orders placed via QR table will appear here automatically.'
+                  : `No orders are currently in ${statusFilter.toLowerCase()} status.`}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredKots.map(kot => {
+                // Age border colors
+                const isLate = kot.elapsedMinutes >= 15;
+                const isWarning = kot.elapsedMinutes >= 10 && kot.elapsedMinutes < 15;
 
-              const borderStyles = isLate
-                ? 'border-rose-500 shadow-rose-950/20'
-                : isWarning
-                  ? 'border-amber-500 shadow-amber-950/20'
-                  : 'border-slate-800/80 hover:border-slate-700';
+                const borderStyles = isLate
+                  ? 'border-rose-500 shadow-rose-950/20'
+                  : isWarning
+                    ? 'border-amber-500 shadow-amber-950/20'
+                    : 'border-slate-800/80 hover:border-slate-700';
 
-              return (
-                <div
-                  key={kot.id}
-                  className={`bg-slate-950/40 border-2 rounded-xl flex flex-col p-4 shadow-lg transition-all ${borderStyles}`}
-                >
-                  {/* Card Header */}
-                  <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
-                    <div>
-                      <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                        {kot.tableName}
-                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
-                          {kot.kotNumber}
-                        </span>
-                      </h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5" suppressHydrationWarning>
-                        Placed: {new Date(kot.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                return (
+                  <div
+                    key={kot.id}
+                    className={`bg-slate-950/40 border-2 rounded-xl flex flex-col p-4 shadow-lg transition-all ${borderStyles}`}
+                  >
+                    {/* Card Header */}
+                    <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
+                      <div>
+                        <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                          {kot.tableName}
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
+                            {kot.kotNumber}
+                          </span>
+                        </h3>
+                        <p className="text-[10px] text-slate-400 mt-0.5" suppressHydrationWarning>
+                          Placed: {new Date(kot.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded ${isLate
+                          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse'
+                          : isWarning
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            : 'bg-slate-800 text-slate-300'
+                          }`}
+                      >
+                        {kot.elapsedMinutes}m elapsed
+                      </span>
                     </div>
 
-                    <span
-                      className={`text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded ${isLate
-                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse'
-                        : isWarning
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-slate-800 text-slate-300'
-                        }`}
-                    >
-                      {kot.elapsedMinutes}m elapsed
-                    </span>
-                  </div>
-
-                  {/* Items list */}
-                  <div className="flex-1 flex flex-col gap-2.5">
-                    {kot.items.map((it, idx) => (
-                      <div key={idx} className="flex justify-between text-xs">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className={it.isVeg ? 'veg-stamp scale-75' : 'nonveg-stamp scale-75'}></span>
-                            <span className="font-bold text-slate-200">{it.name}</span>
+                    {/* Items list */}
+                    <div className="flex-1 flex flex-col gap-2.5">
+                      {kot.items.map((it, idx) => (
+                        <div key={idx} className="flex justify-between text-xs">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={it.isVeg ? 'veg-stamp scale-75' : 'nonveg-stamp scale-75'}></span>
+                              <span className="font-bold text-slate-200">{it.name}</span>
+                            </div>
+                            {it.customizations.length > 0 && (
+                              <p className="text-[10px] text-slate-500 ml-5 mt-0.5">{it.customizations.join(', ')}</p>
+                            )}
                           </div>
-                          {it.customizations.length > 0 && (
-                            <p className="text-[10px] text-slate-500 ml-5 mt-0.5">{it.customizations.join(', ')}</p>
-                          )}
+                          <span className="font-black text-slate-400 ml-2">x{it.quantity}</span>
                         </div>
-                        <span className="font-black text-slate-400 ml-2">x{it.quantity}</span>
-                      </div>
-                    ))}
+                      ))}
 
-                    {kot.specialInstructions && (
-                      <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-2.5 mt-2 text-[10px] text-amber-400 leading-relaxed">
-                        <strong>Notes: </strong> {kot.specialInstructions}
-                      </div>
-                    )}
-                  </div>
+                      {kot.specialInstructions && (
+                        <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-2.5 mt-2 text-[10px] text-amber-400 leading-relaxed">
+                          <strong>Notes: </strong> {kot.specialInstructions}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Actions footer */}
-                  <div className="mt-4 pt-3 border-t border-slate-900 flex gap-2">
-                    {kot.status === 'PENDING' && (
-                      <ButtonLoader
-                        loading={updatingKotId === kot.id}
-                        onClick={() => handleUpdateStatus(kot.id, 'ACCEPTED')}
-                        className="flex-1 bg-primary text-primary-foreground font-bold py-2 rounded-lg text-xs hover:opacity-95"
-                      >
-                        Accept Order
-                      </ButtonLoader>
-                    )}
-                    {kot.status === 'ACCEPTED' && (
-                      <ButtonLoader
-                        loading={updatingKotId === kot.id}
-                        onClick={() => handleUpdateStatus(kot.id, 'PREPARING')}
-                        className="flex-1 bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-amber-400"
-                      >
-                        Start Cooking
-                      </ButtonLoader>
-                    )}
-                    {kot.status === 'PREPARING' && (
-                      <ButtonLoader
-                        loading={updatingKotId === kot.id}
-                        onClick={() => handleUpdateStatus(kot.id, 'READY')}
-                        className="flex-1 bg-emerald-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-emerald-400"
-                      >
-                        Mark Ready
-                      </ButtonLoader>
-                    )}
-                    {kot.status === 'READY' && (
-                      <ButtonLoader
-                        loading={updatingKotId === kot.id}
-                        onClick={() => handleUpdateStatus(kot.id, 'SERVED')}
-                        className="flex-1 bg-blue-500 text-white font-bold py-2 rounded-lg text-xs hover:bg-blue-400"
-                      >
-                        Served / Complete
-                      </ButtonLoader>
-                    )}
-                    {kot.status !== 'SERVED' && kot.status !== 'CANCELLED' && (
-                      <ButtonLoader
-                        loading={updatingKotId === kot.id}
-                        onClick={() => handleUpdateStatus(kot.id, 'CANCELLED')}
-                        className="px-3 py-2 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-950 rounded-lg text-xs"
-                      >
-                        Cancel
-                      </ButtonLoader>
-                    )}
+                    {/* Actions footer */}
+                    <div className="mt-4 pt-3 border-t border-slate-900 flex gap-2">
+                      {kot.status === 'PENDING' && (
+                        <ButtonLoader
+                          loading={updatingKotId === kot.id}
+                          onClick={() => handleUpdateStatus(kot.id, 'ACCEPTED')}
+                          className="flex-1 bg-primary text-primary-foreground font-bold py-2 rounded-lg text-xs hover:opacity-95"
+                        >
+                          Accept Order
+                        </ButtonLoader>
+                      )}
+                      {kot.status === 'ACCEPTED' && (
+                        <ButtonLoader
+                          loading={updatingKotId === kot.id}
+                          onClick={() => handleUpdateStatus(kot.id, 'PREPARING')}
+                          className="flex-1 bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-amber-400"
+                        >
+                          Start Cooking
+                        </ButtonLoader>
+                      )}
+                      {kot.status === 'PREPARING' && (
+                        <ButtonLoader
+                          loading={updatingKotId === kot.id}
+                          onClick={() => handleUpdateStatus(kot.id, 'READY')}
+                          className="flex-1 bg-emerald-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-emerald-400"
+                        >
+                          Mark Ready
+                        </ButtonLoader>
+                      )}
+                      {kot.status === 'READY' && (
+                        <ButtonLoader
+                          loading={updatingKotId === kot.id}
+                          onClick={() => handleUpdateStatus(kot.id, 'SERVED')}
+                          className="flex-1 bg-blue-500 text-white font-bold py-2 rounded-lg text-xs hover:bg-blue-400"
+                        >
+                          Served / Complete
+                        </ButtonLoader>
+                      )}
+                      {kot.status !== 'SERVED' && kot.status !== 'CANCELLED' && (
+                        <ButtonLoader
+                          loading={updatingKotId === kot.id}
+                          onClick={() => handleUpdateStatus(kot.id, 'CANCELLED')}
+                          className="px-3 py-2 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-950 rounded-lg text-xs"
+                        >
+                          Cancel
+                        </ButtonLoader>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Waiter & QR Generator */}
@@ -678,9 +692,9 @@ export default function RestaurantAdminDashboard() {
                     className={`flex-1 bg-slate-900 border text-xs px-3 py-2 rounded-lg text-white focus:outline-none transition-colors duration-200 ${qrError ? 'border-rose-500 focus:border-rose-500' : 'border-slate-800/85 focus:border-slate-700'
                       }`}
                   />
-                  <ButtonLoader
+                   <ButtonLoader
                     loading={isGeneratingQr}
-                    onClick={handleGenerateQR}
+                    onClick={() => handleGenerateQR()}
                     className="flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 text-xs font-black px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20"
                   >
                     Generate

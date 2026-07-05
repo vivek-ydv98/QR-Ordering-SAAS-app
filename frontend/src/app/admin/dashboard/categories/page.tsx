@@ -49,6 +49,19 @@ export default function CategoriesPage() {
   });
   const [submitLoading, setSubmitLoading] = useState(false);
 
+  // Custom Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -131,20 +144,26 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!isAdmin) return;
-    if (!window.confirm('Are you sure you want to delete this category? All items inside this category will be detached or deleted.')) return;
-
-    try {
-      await api.delete(`/categories/${id}`);
-      setSuccess('Category deleted successfully.');
-      fetchCategories();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      console.error('Error deleting category:', err);
-      setError('Failed to delete category.');
-      setTimeout(() => setError(null), 4000);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Category',
+      message: 'Are you sure you want to delete this category? All items inside this category will be detached or deleted.',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/categories/${id}`);
+          setSuccess('Category deleted successfully.');
+          fetchCategories();
+          setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+          console.error('Error deleting category:', err);
+          setError(err.response?.data?.message || 'Failed to delete category.');
+          setTimeout(() => setError(null), 4000);
+        }
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleToggleAvailability = async (category: Category) => {
@@ -459,6 +478,43 @@ export default function CategoriesPage() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-zoomIn">
+            <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="text-sm font-black text-white">{confirmDialog.title}</h3>
+              <button 
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                className="text-slate-500 hover:text-slate-300 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-300 leading-relaxed">{confirmDialog.message}</p>
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 py-2 text-xs font-bold border border-slate-800 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  id="confirm-action-btn"
+                  onClick={confirmDialog.onConfirm}
+                  className="flex-1 py-2 text-xs font-black bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

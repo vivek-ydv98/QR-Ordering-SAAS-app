@@ -95,6 +95,7 @@ export class OrdersService {
         },
         include: {
           items: true,
+          table: true,
         },
       });
 

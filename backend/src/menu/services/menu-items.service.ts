@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMenuItemDto } from '../dtos/create-menu-item.dto';
 import { UpdateMenuItemDto } from '../dtos/update-menu-item.dto';
@@ -72,8 +72,17 @@ export class MenuItemsService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.client.menuItem.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.client.menuItem.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2003') {
+        throw new ConflictException(
+          'Cannot delete menu item because it is referenced by existing orders. You can make it unavailable instead.'
+        );
+      }
+      throw error;
+    }
   }
 }

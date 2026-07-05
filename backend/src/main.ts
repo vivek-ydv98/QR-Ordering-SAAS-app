@@ -65,3 +65,5 @@ async function bootstrap() {
   console.log(`[BOOTSTRAP] NestJS Multi-Tenant Engine running on port: ${PORT}`);
 }
 bootstrap();
+// Trigger reload after env change
+

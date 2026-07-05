@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCategoryDto } from '../dtos/create-category.dto';
 import { UpdateCategoryDto } from '../dtos/update-category.dto';
@@ -39,9 +39,18 @@ export class CategoriesService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.client.menuCategory.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.client.menuCategory.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2003') {
+        throw new ConflictException(
+          'Cannot delete category because it contains items that are referenced by existing orders. You can make it unavailable instead.'
+        );
+      }
+      throw error;
+    }
   }
 
   async sort(ids: string[]) {

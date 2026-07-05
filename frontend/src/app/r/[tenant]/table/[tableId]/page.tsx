@@ -79,6 +79,38 @@ export default function CustomerOrderingPage(props: {
           const items: MenuItem[] = [];
           data.forEach((c: any) => {
             c.menuItems.forEach((item: any) => {
+              const customizationGroups: any[] = [];
+
+              if (item.variants && item.variants.length > 0) {
+                customizationGroups.push({
+                  id: `variants-${item.id}`,
+                  name: 'Select Size / Portion',
+                  minSelect: 1,
+                  maxSelect: 1,
+                  options: item.variants.map((v: any) => ({
+                    id: v.id,
+                    name: v.name,
+                    price: Math.max(0, Number(v.price) - Number(item.price)),
+                    isAvailable: v.isActive
+                  }))
+                });
+              }
+
+              if (item.addons && item.addons.length > 0) {
+                customizationGroups.push({
+                  id: `addons-${item.id}`,
+                  name: 'Add-ons / Customizers',
+                  minSelect: 0,
+                  maxSelect: item.addons.length,
+                  options: item.addons.map((a: any) => ({
+                    id: a.id,
+                    name: a.name,
+                    price: Number(a.price),
+                    isAvailable: a.isActive
+                  }))
+                });
+              }
+
               items.push({
                 id: item.id,
                 name: item.name,
@@ -88,7 +120,7 @@ export default function CustomerOrderingPage(props: {
                 isAvailable: item.isAvailable,
                 imageUrl: item.imageUrl || undefined,
                 categoryId: item.categoryId,
-                customizationGroups: [],
+                customizationGroups,
               });
             });
           });
@@ -310,7 +342,8 @@ export default function CustomerOrderingPage(props: {
       const res = await fetch(`${apiUrl}/orders`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': tenant?.id || ''
         },
         body: JSON.stringify({
           tableId,
