@@ -5,6 +5,8 @@ import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '.
 
 @Injectable()
 export class RestaurantsService {
+  private activeWaiterCalls = new Map<string, any[]>();
+
   constructor(private readonly prisma: PrismaService) { }
 
   /**
@@ -379,14 +381,58 @@ export class RestaurantsService {
     });
   }
 
-  async getTableById(tableId: string) {
-    const table = await this.prisma.client.table.findUnique({
-      where: { id: tableId },
+  async getTableById(tableId: string, restaurantIdOrSlug?: string) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(tableId)) {
+      const table = await this.prisma.client.table.findUnique({
+        where: { id: tableId },
+      });
+      if (!table) {
+        throw new NotFoundError(`Table with ID "${tableId}" not found.`);
+      }
+      return table;
+    }
+
+    if (!restaurantIdOrSlug) {
+      throw new ValidationError('Restaurant identifier required to look up table by name.', 'restaurantId');
+    }
+
+    let rId: string;
+    try {
+      rId = await this.resolveRestaurantId(restaurantIdOrSlug);
+    } catch {
+      throw new NotFoundError(`Restaurant "${restaurantIdOrSlug}" not found.`);
+    }
+
+    const table = await this.prisma.client.table.findFirst({
+      where: {
+        restaurantId: rId,
+        name: {
+          equals: tableId,
+          mode: 'insensitive',
+        },
+      },
     });
+
     if (!table) {
-      throw new NotFoundError(`Table with ID "${tableId}" not found.`);
+      throw new NotFoundError(`Table "${tableId}" not found for restaurant.`);
     }
     return table;
+  }
+
+  addWaiterCall(tenantId: string, callPayload: any) {
+    const calls = this.activeWaiterCalls.get(tenantId) || [];
+    calls.push(callPayload);
+    this.activeWaiterCalls.set(tenantId, calls);
+  }
+
+  resolveWaiterCall(tenantId: string, callId: string) {
+    const calls = this.activeWaiterCalls.get(tenantId) || [];
+    this.activeWaiterCalls.set(tenantId, calls.filter(c => c.id !== callId));
+  }
+
+  getWaiterCalls(tenantId: string) {
+    return this.activeWaiterCalls.get(tenantId) || [];
   }
 
   async deleteTable(tableId: string) {
@@ -441,6 +487,37 @@ export class RestaurantsService {
     return this.prisma.client.table.updateMany({
       where: { restaurantId },
       data: { qrCodeUrl: null },
+    });
+  }
+
+  async getRestaurantSettings(restaurantId: string) {
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    if (!settings) {
+      throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
+    }
+    return settings;
+  }
+
+  async updateRestaurantSettings(
+    restaurantId: string,
+    data: { cgstRate?: number | null; sgstRate?: number | null; serviceChargeRate?: number | null }
+  ) {
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    if (!settings) {
+      throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
+    }
+
+    return this.prisma.client.restaurantSetting.update({
+      where: { restaurantId },
+      data: {
+        cgstRate: data.cgstRate === null || data.cgstRate === undefined ? null : data.cgstRate,
+        sgstRate: data.sgstRate === null || data.sgstRate === undefined ? null : data.sgstRate,
+        serviceChargeRate: data.serviceChargeRate === null || data.serviceChargeRate === undefined ? null : data.serviceChargeRate,
+      },
     });
   }
 }

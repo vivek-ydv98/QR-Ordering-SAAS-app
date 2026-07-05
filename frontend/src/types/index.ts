@@ -1,4 +1,4 @@
-export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
 
 export type WaiterRequestType = 'water' | 'bill' | 'service' | 'cutlery';
 
@@ -16,9 +16,9 @@ export interface TenantConfig {
   allowUpiPayments: boolean;
   allowWaiterCall: boolean;
   taxRates: {
-    cgst: number; // percentage
-    sgst: number; // percentage
-    serviceCharge: number; // percentage
+    cgst: number | null; // percentage or null
+    sgst: number | null; // percentage or null
+    serviceCharge: number | null; // percentage or null
   };
 }
 
@@ -94,6 +94,7 @@ export interface Table {
 export interface KOTItem {
   name: string;
   quantity: number;
+  price?: number;
   isVeg: boolean;
   customizations: string[]; // Formatted customizations text, e.g., "Extra Cheese, Large"
 }
@@ -108,6 +109,14 @@ export interface KOT {
   status: OrderStatus;
   items: KOTItem[];
   specialInstructions?: string;
+  subtotal?: number;
+  cgst?: number | null;
+  sgst?: number | null;
+  serviceCharge?: number | null;
+  cgstRate?: number | null;
+  sgstRate?: number | null;
+  serviceChargeRate?: number | null;
+  grandTotal?: number;
 }
 
 export interface WaiterCall {

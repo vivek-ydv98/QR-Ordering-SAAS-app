@@ -29,7 +29,7 @@ export class UsersService {
     }
 
     // 3. Generate temporary password if not provided
-    const tempPassword = createUserDto.password || `Temp_${Math.random().toString(36).substring(2, 10)}`;
+    const tempPassword = createUserDto.password || 'Password123';
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 
@@ -138,7 +138,7 @@ export class UsersService {
       throw new NotFoundError(`User with ID "${userId}" not found`);
     }
 
-    const tempPassword = explicitPassword || `Reset_${Math.random().toString(36).substring(2, 10)}`;
+    const tempPassword = explicitPassword || 'Password123';
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 

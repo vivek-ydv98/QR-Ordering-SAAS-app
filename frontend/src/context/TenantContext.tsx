@@ -55,9 +55,9 @@ export const TenantProvider: React.FC<{
             allowUpiPayments: data.restaurantSettings?.allowUpiPayments ?? true,
             allowWaiterCall: data.restaurantSettings?.allowWaiterCall ?? true,
             taxRates: {
-              cgst: Number(data.restaurantSettings?.cgstRate ?? 2.5),
-              sgst: Number(data.restaurantSettings?.sgstRate ?? 2.5),
-              serviceCharge: Number(data.restaurantSettings?.serviceChargeRate ?? 0),
+              cgst: data.restaurantSettings?.cgstRate === null ? null : Number(data.restaurantSettings?.cgstRate ?? 2.5),
+              sgst: data.restaurantSettings?.sgstRate === null ? null : Number(data.restaurantSettings?.sgstRate ?? 2.5),
+              serviceCharge: data.restaurantSettings?.serviceChargeRate === null ? null : Number(data.restaurantSettings?.serviceChargeRate ?? 5.0),
             },
           },
         };

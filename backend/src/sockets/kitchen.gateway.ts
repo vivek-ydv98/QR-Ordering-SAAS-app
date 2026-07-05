@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { UseFilters, UseGuards, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { RestaurantsService } from '../restaurants/restaurants.service';
 
 @WebSocketGateway({
   cors: {
@@ -21,7 +22,10 @@ export class KitchenGateway implements OnGatewayConnection, OnGatewayDisconnect 
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly restaurantsService: RestaurantsService,
+  ) {}
 
   // Track socket connections security parameters
   async handleConnection(client: Socket) {
@@ -152,9 +156,33 @@ export class KitchenGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
+    // Save active call in memory
+    this.restaurantsService.addWaiterCall(tenantId, callPayload);
+
     // Broadcast alert to floor staff rooms
     const targetRoom = `tenant:${tenantId}`;
     this.server.to(targetRoom).emit('waiter:call', callPayload);
     console.log(`[Socket Emit] Assistance request from table ${callPayload.tableName} sent to room: ${targetRoom}`);
+  }
+
+  @SubscribeMessage('waiter:resolve')
+  handleWaiterResolve(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { id: string; tenantId: string }
+  ) {
+    const tenantId = client.data.tenantId;
+
+    if (payload.tenantId !== tenantId) {
+      console.warn(`[Security Alert] Client ${client.id} attempted to inject cross-tenant waiter call resolution.`);
+      return;
+    }
+
+    // Remove active call from memory
+    this.restaurantsService.resolveWaiterCall(tenantId, payload.id);
+
+    // Broadcast resolution to floor staff rooms
+    const targetRoom = `tenant:${tenantId}`;
+    this.server.to(targetRoom).emit('waiter:resolve', payload);
+    console.log(`[Socket Emit] Assistance request resolved: ${payload.id} sent to room: ${targetRoom}`);
   }
 }

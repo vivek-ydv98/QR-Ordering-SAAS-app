@@ -14,7 +14,10 @@ import {
   UserCheck,
   Database,
   Users,
-  User
+  User,
+  ShieldAlert,
+  Receipt,
+  Settings
 } from 'lucide-react';
 import api from '../../../lib/api';
 import { PageLoader } from '../../../components/LoadingComponents';
@@ -50,7 +53,15 @@ export default function DashboardLayout({
         const profile = JSON.parse(profileStr);
         setTenantId(profile.restaurantId || '');
         setAdminName(profile.fullName);
-        setRole(profile.role || 'RESTAURANT_ADMIN');
+        
+        // Support role query parameter override for testing purposes
+        const urlParams = new URLSearchParams(window.location.search);
+        const roleOverride = urlParams.get('role');
+        if (roleOverride) {
+          setRole(roleOverride);
+        } else {
+          setRole(profile.role || 'RESTAURANT_ADMIN');
+        }
 
         const resId = profile.restaurantId;
         if (resId) {
@@ -79,16 +90,35 @@ export default function DashboardLayout({
     router.push('/login');
   };
 
+  const getDashboardName = (userRole: string) => {
+    switch (userRole) {
+      case 'KITCHEN_STAFF':
+        return 'Kitchen KDS Terminal';
+      case 'WAITER':
+        return 'Waiter Operations Hub';
+      case 'CASHIER':
+        return 'Cashier Billing Terminal';
+      default:
+        return 'Live Orders Terminal';
+    }
+  };
+
   const navItems = [
-    { name: 'Live Orders Terminal', href: '/admin/dashboard', icon: Terminal, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER'] },
+    { name: getDashboardName(role), href: '/admin/dashboard', icon: Terminal, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER'] },
     { name: 'Category Management', href: '/admin/dashboard/categories', icon: Layers, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER'] },
     { name: 'Menu & Add-ons', href: '/admin/dashboard/menu', icon: UtensilsCrossed, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER'] },
     { name: 'Table Management', href: '/admin/dashboard/tables', icon: Database, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER'] },
     { name: 'Staff Management', href: '/admin/dashboard/staff', icon: Users, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER'] },
+    { name: 'Billing Terminal', href: '/admin/dashboard/billing', icon: Receipt, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER'] },
+    { name: 'Restaurant Settings', href: '/admin/dashboard/settings', icon: Settings, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER'] },
     { name: 'My Profile', href: '/admin/dashboard/profile', icon: User, allowedRoles: ['RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER'] },
   ];
 
   const allowedNavItems = navItems.filter(item => item.allowedRoles.includes(role));
+  
+  // Centralized route protection
+  const currentNavItem = navItems.find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+  const isRouteAllowed = !currentNavItem || currentNavItem.allowedRoles.includes(role);
 
   if (isAuthLoading) {
     return <PageLoader message="Securing merchant credentials..." theme="admin" />;
@@ -205,7 +235,17 @@ export default function DashboardLayout({
 
           {/* Main Page Area */}
           <main className="flex-1 overflow-y-auto">
-            {children}
+            {isRouteAllowed ? (
+              children
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[80vh] p-8 text-center bg-slate-950">
+                <ShieldAlert className="w-16 h-16 text-rose-500 animate-bounce mb-4" />
+                <h2 className="text-xl font-black text-white">Access Denied</h2>
+                <p className="text-xs text-slate-400 mt-2 max-w-sm">
+                  You do not have permission to access this page. Please contact your restaurant administrator.
+                </p>
+              </div>
+            )}
           </main>
         </div>
 

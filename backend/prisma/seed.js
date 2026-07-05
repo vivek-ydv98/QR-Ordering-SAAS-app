@@ -21,7 +21,7 @@ async function main() {
 
   // Hash password for default users
   const salt = await bcrypt.genSalt(10);
-  const adminPasswordHash = await bcrypt.hash('Reset_xhjzc6bn', salt);
+  const adminPasswordHash = await bcrypt.hash('Password123', salt);
 
   // 2. Create Super Admin User (Not bound to any restaurant)
   const superAdmin = await prisma.user.create({

@@ -50,6 +50,8 @@ export default function CustomerOrderingPage(props: {
   const [menuLoadError, setMenuLoadError] = useState<string | null>(null);
   const [menuLoading, setMenuLoading] = useState(true);
   const [tableActive, setTableActive] = useState<boolean | null>(null);
+  const [tableName, setTableName] = useState<string>('');
+  const [tableUuid, setTableUuid] = useState<string>('');
   const [tableLoading, setTableLoading] = useState(true);
 
   // Fetch Menu from Database
@@ -154,10 +156,12 @@ export default function CustomerOrderingPage(props: {
     const fetchTableStatus = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1';
-        const res = await fetch(`${apiUrl}/restaurants/tables/by-id/${tableId}`);
+        const res = await fetch(`${apiUrl}/restaurants/tables/by-id/${tableId}?restaurant=${tenantSlug}`);
         if (res.ok && active) {
           const data = await res.json();
           setTableActive(data.isActive);
+          setTableName(data.name);
+          setTableUuid(data.id);
         } else if (active) {
           // If table lookup fails, default to active so ordering isn't blocked by a network hiccup
           setTableActive(true);
@@ -346,7 +350,7 @@ export default function CustomerOrderingPage(props: {
           'X-Tenant-ID': tenant?.id || ''
         },
         body: JSON.stringify({
-          tableId,
+          tableId: tableUuid || tableId,
           items: itemsPayload,
           specialInstructions: cookingInstructions
         })
@@ -400,7 +404,7 @@ export default function CustomerOrderingPage(props: {
     emitEvent('waiter:call', {
       id: `call_${Date.now()}`,
       tableId,
-      tableName: `Table ${tableId.toUpperCase()}`,
+      tableName: `Table ${tableName || tableId.toUpperCase()}`,
       tenantId: tenant.id,
       requestType: waiterCallReason,
       timestamp: new Date().toISOString()
@@ -932,15 +936,19 @@ export default function CustomerOrderingPage(props: {
                   <span>Subtotal</span>
                   <span>₹{totals.subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>CGST ({tenant.config.taxRates.cgst}%)</span>
-                  <span>₹{totals.cgst.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>SGST ({tenant.config.taxRates.sgst}%)</span>
-                  <span>₹{totals.sgst.toFixed(2)}</span>
-                </div>
-                {tenant.config.taxRates.serviceCharge > 0 && (
+                {totals.cgst !== null && totals.cgst !== undefined && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>CGST ({tenant.config.taxRates.cgst}%)</span>
+                    <span>₹{totals.cgst.toFixed(2)}</span>
+                  </div>
+                )}
+                {totals.sgst !== null && totals.sgst !== undefined && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>SGST ({tenant.config.taxRates.sgst}%)</span>
+                    <span>₹{totals.sgst.toFixed(2)}</span>
+                  </div>
+                )}
+                {totals.serviceCharge !== null && totals.serviceCharge !== undefined && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Service Charge ({tenant.config.taxRates.serviceCharge}%)</span>
                     <span>₹{totals.serviceCharge.toFixed(2)}</span>

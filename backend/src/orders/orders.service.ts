@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStateMachine } from './orders.state';
 import { OrderStatus } from '@prisma/client';
@@ -38,10 +38,12 @@ export class OrdersService {
     }
 
     // 3. Retrieve active taxation settings for the restaurant
-    const settings = await this.prisma.client.restaurantSetting.findFirst();
-    const cgstRate = settings ? Number(settings.cgstRate) : 2.5;
-    const sgstRate = settings ? Number(settings.sgstRate) : 2.5;
-    const serviceChargeRate = settings ? Number(settings.serviceChargeRate) : 5.0;
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId: table.restaurantId },
+    });
+    const cgstRate = settings && settings.cgstRate !== null ? Number(settings.cgstRate) : null;
+    const sgstRate = settings && settings.sgstRate !== null ? Number(settings.sgstRate) : null;
+    const serviceChargeRate = settings && settings.serviceChargeRate !== null ? Number(settings.serviceChargeRate) : null;
 
     // 4. Calculate prices
     let subtotal = 0;
@@ -66,10 +68,10 @@ export class OrdersService {
       };
     });
 
-    const cgst = subtotal * (cgstRate / 100);
-    const sgst = subtotal * (sgstRate / 100);
-    const serviceCharge = subtotal * (serviceChargeRate / 100);
-    const grandTotal = subtotal + cgst + sgst + serviceCharge;
+    const cgst = cgstRate !== null ? subtotal * (cgstRate / 100) : null;
+    const sgst = sgstRate !== null ? subtotal * (sgstRate / 100) : null;
+    const serviceCharge = serviceChargeRate !== null ? subtotal * (serviceChargeRate / 100) : null;
+    const grandTotal = subtotal + (cgst ?? 0) + (sgst ?? 0) + (serviceCharge ?? 0);
 
     // Generate KOT serial number
     const todayOrdersCount = await this.prisma.client.order.count();
@@ -87,6 +89,9 @@ export class OrdersService {
           cgst,
           sgst,
           serviceCharge,
+          cgstRate,
+          sgstRate,
+          serviceChargeRate,
           grandTotal,
           specialInstructions,
           items: {
@@ -122,13 +127,39 @@ export class OrdersService {
   /**
    * Update status of an existing order enforcing lifecycle rules
    */
-  async updateOrderStatus(orderId: string, targetStatus: OrderStatus) {
+  async updateOrderStatus(orderId: string, targetStatus: OrderStatus, userRole?: string) {
     const order = await this.prisma.client.order.findUnique({
       where: { id: orderId },
     });
 
     if (!order) {
       throw new NotFoundError('Requested order record not found.');
+    }
+
+    // Enforce role-based access control (RBAC) on transitions
+    if (userRole) {
+      if (userRole === 'KITCHEN_STAFF') {
+        const allowedKitchenStatuses: OrderStatus[] = ['confirmed', 'preparing', 'ready', 'served'];
+        if (!allowedKitchenStatuses.includes(targetStatus)) {
+          throw new ForbiddenException(
+            `Access denied. Kitchen Staff cannot transition orders to "${targetStatus}".`
+          );
+        }
+      } else if (userRole === 'WAITER') {
+        const allowedWaiterStatuses: OrderStatus[] = ['served'];
+        if (!allowedWaiterStatuses.includes(targetStatus)) {
+          throw new ForbiddenException(
+            `Access denied. Waiters cannot transition orders to "${targetStatus}".`
+          );
+        }
+      } else if (userRole === 'CASHIER') {
+        const allowedCashierStatuses: OrderStatus[] = ['served', 'completed'];
+        if (!allowedCashierStatuses.includes(targetStatus)) {
+          throw new ForbiddenException(
+            `Access denied. Cashiers cannot transition orders to "${targetStatus}".`
+          );
+        }
+      }
     }
 
     // Enforce Finite State Machine transitions
@@ -286,5 +317,39 @@ export class OrdersService {
       },
       avgPrepSpeed,
     };
+  }
+
+  async getCompletedOrdersToday(restaurantId: string) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    return this.prisma.client.order.findMany({
+      where: {
+        restaurantId,
+        status: 'completed',
+        createdAt: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+      include: {
+        items: {
+          include: {
+            menuItem: {
+              select: {
+                isVeg: true,
+              },
+            },
+          },
+        },
+        table: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
   }
 }
