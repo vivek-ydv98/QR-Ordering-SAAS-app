@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSocket } from '../../../hooks/useSocket';
 import { KOT, WaiterCall, Table } from '../../../types';
-import { Bell, Check, TrendingUp, Users, Clock, ShoppingCart, RefreshCw, QrCode, Search, Award, Loader2, LogOut, Copy, Receipt, Printer, Landmark, Coffee } from 'lucide-react';
+import { Bell, Check, TrendingUp, Users, Clock, ShoppingCart, RefreshCw, QrCode, Search, Award, Loader2, LogOut, Copy, Receipt, Printer, Landmark, Coffee, Terminal } from 'lucide-react';
 import api from '../../../lib/api';
 import { useToastStore } from '../../../store/useToastStore';
 import { useDashboard } from './DashboardContext';
@@ -26,6 +26,7 @@ export default function RestaurantAdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [updatingKotId, setUpdatingKotId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'live-orders' | 'waiter-hub'>('live-orders');
 
   // Dashboard Stats state
   const [stats, setStats] = useState({
@@ -443,7 +444,7 @@ export default function RestaurantAdminDashboard() {
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
           <div>
             <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2">
-              Live Orders Terminal
+              {activeTab === 'live-orders' ? 'Live Orders Terminal' : 'Waiter Operations Hub'}
               <span className="text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
                 Active Session
               </span>
@@ -451,7 +452,11 @@ export default function RestaurantAdminDashboard() {
                 <InlineLoader message="Syncing..." className="ml-2" />
               )}
             </h1>
-            <p className="text-xs text-slate-400 mt-1">Real-time KOT tracking terminal for kitchen operators.</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {activeTab === 'live-orders'
+                ? 'Real-time KOT tracking terminal for kitchen operators.'
+                : 'Manage dining floor layouts, active tickets, and live customer assistance alerts.'}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -464,345 +469,393 @@ export default function RestaurantAdminDashboard() {
           </div>
         </header>
 
-        {/* Metrics Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Today's Revenue</p>
-              <h3 className="text-lg font-black text-white mt-1">₹{stats.todayRevenue.toLocaleString()}</h3>
-            </div>
-            <TrendingUp className="w-6 h-6 text-emerald-500" />
-          </div>
-          <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Live KOTs</p>
-              <h3 className="text-lg font-black text-white mt-1">
-                {stats.liveKots} Active
-              </h3>
-            </div>
-            <ShoppingCart className="w-6 h-6 text-blue-500" />
-          </div>
-          <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Table Occupancy</p>
-              <h3 className="text-lg font-black text-white mt-1">
-                {stats.tableOccupancy.occupied} / {stats.tableOccupancy.total}
-              </h3>
-            </div>
-            <Users className="w-6 h-6 text-purple-500" />
-          </div>
-          <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Avg. Prep Speed</p>
-              <h3 className="text-lg font-black text-white mt-1">
-                {stats.avgPrepSpeed !== null ? `${stats.avgPrepSpeed} Mins` : '—'}
-              </h3>
-            </div>
-            <Clock className="w-6 h-6 text-orange-500" />
-          </div>
+        {/* Navigation Tabs for Admin */}
+        <div className="flex items-center justify-start gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800/80 max-w-md">
+          <button
+            onClick={() => setActiveTab('live-orders')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-black transition-all ${
+              activeTab === 'live-orders'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            Live Orders Terminal
+          </button>
+          <button
+            onClick={() => setActiveTab('waiter-hub')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-black transition-all ${
+              activeTab === 'waiter-hub'
+                ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+            }`}
+          >
+            <Coffee className="w-3.5 h-3.5" />
+            Waiter Operations Hub
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Left 2 Columns: Order Operations */}
-          <div className={`lg:col-span-2 flex flex-col gap-6 transition-all duration-300 relative ${isRefreshing ? 'pointer-events-none opacity-50' : ''}`}>
-
-            {/* Filter Bar */}
-            <div className="flex flex-col md:flex-row items-center gap-3 bg-slate-950/20 border border-slate-800/60 p-3.5 rounded-xl">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Search KOT / Table..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800/80 pl-9 pr-4 py-2 rounded-lg text-xs focus:outline-none focus:border-slate-600"
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto">
-                {(['ALL', 'PENDING', 'ACCEPTED', 'PREPARING', 'READY'] as const).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setStatusFilter(f)}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === f
-                      ? 'bg-white text-slate-900 shadow'
-                      : 'bg-slate-900 text-slate-400 border border-slate-800/60 hover:text-slate-200'
-                      }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* KOT Cards Grid */}
-            {filteredKots.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 px-4 bg-slate-900/10 border border-dashed border-slate-800/80 rounded-xl">
-                <ShoppingCart className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
-                <p className="text-xs font-bold text-slate-400">No active KOTs found</p>
-                <p className="text-[10px] text-slate-500 mt-1 text-center max-w-xs leading-relaxed">
-                  {statusFilter === 'ALL'
-                    ? 'No active orders in the kitchen. New customer orders placed via QR table will appear here automatically.'
-                    : `No orders are currently in ${statusFilter.toLowerCase()} status.`}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredKots.map(kot => {
-                  // Age border colors
-                  const isLate = kot.elapsedMinutes >= 15;
-                  const isWarning = kot.elapsedMinutes >= 10 && kot.elapsedMinutes < 15;
-
-                  const borderStyles = isLate
-                    ? 'border-rose-500 shadow-rose-950/20'
-                    : isWarning
-                      ? 'border-amber-500 shadow-amber-950/20'
-                      : 'border-slate-800/80 hover:border-slate-700';
-
-                  return (
-                    <div
-                      key={kot.id}
-                      className={`bg-slate-950/40 border-2 rounded-xl flex flex-col p-4 shadow-lg transition-all ${borderStyles}`}
-                    >
-                      {/* Card Header */}
-                      <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
-                        <div>
-                          <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                            {kot.tableName}
-                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
-                              {kot.kotNumber}
-                            </span>
-                          </h3>
-                          <p className="text-[10px] text-slate-400 mt-0.5" suppressHydrationWarning>
-                            Placed: {new Date(kot.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded ${isLate
-                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse'
-                            : isWarning
-                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                              : 'bg-slate-800 text-slate-300'
-                            }`}
-                        >
-                          {kot.elapsedMinutes}m elapsed
-                        </span>
-                      </div>
-
-                      {/* Items list */}
-                      <div className="flex-1 flex flex-col gap-2.5">
-                        {kot.items.map((it, idx) => (
-                          <div key={idx} className="flex justify-between text-xs">
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className={it.isVeg ? 'veg-stamp scale-75' : 'nonveg-stamp scale-75'}></span>
-                                <span className="font-bold text-slate-200">{it.name}</span>
-                              </div>
-                              {it.customizations.length > 0 && (
-                                <p className="text-[10px] text-slate-500 ml-5 mt-0.5">{it.customizations.join(', ')}</p>
-                              )}
-                            </div>
-                            <span className="font-black text-slate-400 ml-2">x{it.quantity}</span>
-                          </div>
-                        ))}
-
-                        {kot.specialInstructions && (
-                          <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-2.5 mt-2 text-[10px] text-amber-400 leading-relaxed">
-                            <strong>Notes: </strong> {kot.specialInstructions}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions footer */}
-                      <div className="mt-4 pt-3 border-t border-slate-900 flex gap-2">
-                        {kot.status === 'PENDING' && (
-                          <ButtonLoader
-                            loading={updatingKotId === kot.id}
-                            onClick={() => handleUpdateStatus(kot.id, 'ACCEPTED')}
-                            className="flex-1 bg-primary text-primary-foreground font-bold py-2 rounded-lg text-xs hover:opacity-95"
-                          >
-                            Accept Order
-                          </ButtonLoader>
-                        )}
-                        {kot.status === 'ACCEPTED' && (
-                          <ButtonLoader
-                            loading={updatingKotId === kot.id}
-                            onClick={() => handleUpdateStatus(kot.id, 'PREPARING')}
-                            className="flex-1 bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-amber-400"
-                          >
-                            Start Cooking
-                          </ButtonLoader>
-                        )}
-                        {kot.status === 'PREPARING' && (
-                          <ButtonLoader
-                            loading={updatingKotId === kot.id}
-                            onClick={() => handleUpdateStatus(kot.id, 'READY')}
-                            className="flex-1 bg-emerald-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-emerald-400"
-                          >
-                            Mark Ready
-                          </ButtonLoader>
-                        )}
-                        {kot.status === 'READY' && (
-                          <ButtonLoader
-                            loading={updatingKotId === kot.id}
-                            onClick={() => handleUpdateStatus(kot.id, 'SERVED')}
-                            className="flex-1 bg-blue-500 text-white font-bold py-2 rounded-lg text-xs hover:bg-blue-400"
-                          >
-                            Served / Complete
-                          </ButtonLoader>
-                        )}
-                        {kot.status !== 'SERVED' && kot.status !== 'CANCELLED' && (
-                          <ButtonLoader
-                            loading={updatingKotId === kot.id}
-                            onClick={() => handleUpdateStatus(kot.id, 'CANCELLED')}
-                            className="px-3 py-2 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-950 rounded-lg text-xs"
-                          >
-                            Cancel
-                          </ButtonLoader>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Right Column: Waiter & QR Generator */}
-          <div className="flex flex-col gap-6">
-
-            {/* Waiter Assistance Panel */}
-            <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 shadow-lg">
-              <h2 className="text-sm font-extrabold text-white flex items-center justify-between border-b border-slate-800 pb-2 mb-4">
-                <span className="flex items-center gap-1.5">
-                  <Bell className="w-4 h-4 text-amber-400" /> Live Assistance Log
-                </span>
-                {waiterCalls.length > 0 && (
-                  <span className="h-2 w-2 bg-amber-400 rounded-full animate-ping"></span>
-                )}
-              </h2>
-
-              {waiterCalls.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-500">
-                  No active waiter assistance requested.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-1">
-                  {waiterCalls.map(call => (
-                    <div
-                      key={call.id}
-                      className="flex justify-between items-center p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl"
-                    >
-                      <div>
-                        <p className="text-xs font-bold text-white leading-tight">
-                          {call.tableName} • {call.requestType.toUpperCase()}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1" suppressHydrationWarning>
-                          {new Date(call.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => handleResolveWaiterCall(call.id)}
-                        className="p-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 rounded-lg transition-all"
-                        title="Resolve Alert"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* QR Generator Widget */}
-            <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 shadow-lg">
-              <h2 className="text-sm font-extrabold text-white flex items-center gap-1.5 border-b border-slate-800 pb-2 mb-4">
-                <QrCode className="w-4 h-4 text-primary" /> Dynamic QR Code Generator
-              </h2>
-
-              <div className="flex flex-col gap-3">
+        {activeTab === 'live-orders' ? (
+          <>
+            {/* Metrics Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
                 <div>
-                  <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Dining Table ID</label>
-                  <div className="flex gap-2 mt-1">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Today's Revenue</p>
+                  <h3 className="text-lg font-black text-white mt-1">₹{stats.todayRevenue.toLocaleString()}</h3>
+                </div>
+                <TrendingUp className="w-6 h-6 text-emerald-500" />
+              </div>
+              <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
+                <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Live KOTs</p>
+                  <h3 className="text-lg font-black text-white mt-1">
+                    {stats.liveKots} Active
+                  </h3>
+                </div>
+                <ShoppingCart className="w-6 h-6 text-blue-500" />
+              </div>
+              <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
+                <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Table Occupancy</p>
+                  <h3 className="text-lg font-black text-white mt-1">
+                    {stats.tableOccupancy.occupied} / {stats.tableOccupancy.total}
+                  </h3>
+                </div>
+                <Users className="w-6 h-6 text-purple-500" />
+              </div>
+              <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
+                <div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Avg. Prep Speed</p>
+                  <h3 className="text-lg font-black text-white mt-1">
+                    {stats.avgPrepSpeed !== null ? `${stats.avgPrepSpeed} Mins` : '—'}
+                  </h3>
+                </div>
+                <Clock className="w-6 h-6 text-orange-500" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* Left 2 Columns: Order Operations */}
+              <div className={`lg:col-span-2 flex flex-col gap-6 transition-all duration-300 relative ${isRefreshing ? 'pointer-events-none opacity-50' : ''}`}>
+
+                {/* Filter Bar */}
+                <div className="flex flex-col md:flex-row items-center gap-3 bg-slate-950/20 border border-slate-800/60 p-3.5 rounded-xl">
+                  <div className="relative flex-1 w-full">
+                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-550" />
                     <input
                       type="text"
-                      placeholder="E.g., T12"
-                      value={qrTableId}
-                      onChange={(e) => {
-                        setQrTableId(e.target.value);
-                        if (qrError) setQrError('');
-                      }}
-                      className={`flex-1 bg-slate-900 border text-xs px-3 py-2 rounded-lg text-white focus:outline-none transition-colors duration-200 ${qrError ? 'border-rose-500 focus:border-rose-500' : 'border-slate-800/85 focus:border-slate-700'
-                        }`}
+                      placeholder="Search KOT / Table..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800/80 pl-9 pr-4 py-2 rounded-lg text-xs focus:outline-none focus:border-slate-600"
                     />
-                    <ButtonLoader
-                      loading={isGeneratingQr}
-                      onClick={() => handleGenerateQR()}
-                      className="flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 text-xs font-black px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20"
-                    >
-                      Generate
-                    </ButtonLoader>
                   </div>
-                  {qrError && (
-                    <p className="text-[10px] text-rose-500 font-semibold mt-1">
-                      {qrError}
+
+                  <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto">
+                    {(['ALL', 'PENDING', 'ACCEPTED', 'PREPARING', 'READY'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setStatusFilter(f)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${statusFilter === f
+                          ? 'bg-white text-slate-900 shadow'
+                          : 'bg-slate-900 text-slate-400 border border-slate-800/60 hover:text-slate-200'
+                          }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* KOT Cards Grid */}
+                {filteredKots.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-24 px-4 bg-slate-900/10 border border-dashed border-slate-800/80 rounded-xl">
+                    <ShoppingCart className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
+                    <p className="text-xs font-bold text-slate-400">No active KOTs found</p>
+                    <p className="text-[10px] text-slate-500 mt-1 text-center max-w-xs leading-relaxed">
+                      {statusFilter === 'ALL'
+                        ? 'No active orders in the kitchen. New customer orders placed via QR table will appear here automatically.'
+                        : `No orders are currently in ${statusFilter.toLowerCase()} status.`}
                     </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredKots.map(kot => {
+                      const isLate = kot.elapsedMinutes >= 15;
+                      const isWarning = kot.elapsedMinutes >= 10 && kot.elapsedMinutes < 15;
+
+                      const borderStyles = isLate
+                        ? 'border-rose-500 shadow-rose-950/20'
+                        : isWarning
+                          ? 'border-amber-500 shadow-amber-950/20'
+                          : 'border-slate-800/80 hover:border-slate-700';
+
+                      return (
+                        <div
+                          key={kot.id}
+                          className={`bg-slate-950/40 border-2 rounded-xl flex flex-col p-4 shadow-lg transition-all ${borderStyles}`}
+                        >
+                          {/* Card Header */}
+                          <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
+                            <div>
+                              <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                                {kot.tableName}
+                                <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
+                                  {kot.kotNumber}
+                                </span>
+                              </h3>
+                              <p className="text-[10px] text-slate-400 mt-0.5" suppressHydrationWarning>
+                                Placed: {new Date(kot.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+
+                            <span
+                              className={`text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded ${isLate
+                                ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse'
+                                : isWarning
+                                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                  : 'bg-slate-800 text-slate-300'
+                                }`}
+                            >
+                              {kot.elapsedMinutes}m elapsed
+                            </span>
+                          </div>
+
+                          {/* Items list */}
+                          <div className="flex-1 flex flex-col gap-2.5">
+                            {kot.items.map((it, idx) => (
+                              <div key={idx} className="flex justify-between text-xs">
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={it.isVeg ? 'veg-stamp scale-75' : 'nonveg-stamp scale-75'}></span>
+                                    <span className="font-bold text-slate-200">{it.name}</span>
+                                  </div>
+                                  {it.customizations.length > 0 && (
+                                    <p className="text-[10px] text-slate-500 ml-5 mt-0.5">{it.customizations.join(', ')}</p>
+                                  )}
+                                </div>
+                                <span className="font-black text-slate-400 ml-2">x{it.quantity}</span>
+                              </div>
+                            ))}
+
+                            {kot.specialInstructions && (
+                              <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-2.5 mt-2 text-[10px] text-amber-400 leading-relaxed">
+                                <strong>Notes: </strong> {kot.specialInstructions}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions footer */}
+                          <div className="mt-4 pt-3 border-t border-slate-900 flex gap-2">
+                            {kot.status === 'PENDING' && (
+                              <ButtonLoader
+                                loading={updatingKotId === kot.id}
+                                onClick={() => handleUpdateStatus(kot.id, 'ACCEPTED')}
+                                className="flex-1 bg-primary text-primary-foreground font-bold py-2 rounded-lg text-xs hover:opacity-95"
+                              >
+                                Accept Order
+                              </ButtonLoader>
+                            )}
+                            {kot.status === 'ACCEPTED' && (
+                              <ButtonLoader
+                                loading={updatingKotId === kot.id}
+                                onClick={() => handleUpdateStatus(kot.id, 'PREPARING')}
+                                className="flex-1 bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-amber-400"
+                              >
+                                Start Cooking
+                              </ButtonLoader>
+                            )}
+                            {kot.status === 'PREPARING' && (
+                              <ButtonLoader
+                                loading={updatingKotId === kot.id}
+                                onClick={() => handleUpdateStatus(kot.id, 'READY')}
+                                className="flex-1 bg-emerald-500 text-slate-950 font-bold py-2 rounded-lg text-xs hover:bg-emerald-400"
+                              >
+                                Mark Ready
+                              </ButtonLoader>
+                            )}
+                            {kot.status === 'READY' && (
+                              <ButtonLoader
+                                loading={updatingKotId === kot.id}
+                                onClick={() => handleUpdateStatus(kot.id, 'SERVED')}
+                                className="flex-1 bg-blue-500 text-white font-bold py-2 rounded-lg text-xs hover:bg-blue-400"
+                              >
+                                Served / Complete
+                              </ButtonLoader>
+                            )}
+                            {kot.status !== 'SERVED' && kot.status !== 'CANCELLED' && (
+                              <ButtonLoader
+                                loading={updatingKotId === kot.id}
+                                onClick={() => handleUpdateStatus(kot.id, 'CANCELLED')}
+                                className="px-3 py-2 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-950 rounded-lg text-xs"
+                              >
+                                Cancel
+                              </ButtonLoader>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Waiter & QR Generator */}
+              <div className="flex flex-col gap-6">
+
+                {/* Waiter Assistance Panel */}
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 shadow-lg">
+                  <h2 className="text-sm font-extrabold text-white flex items-center justify-between border-b border-slate-800 pb-2 mb-4">
+                    <span className="flex items-center gap-1.5">
+                      <Bell className="w-4 h-4 text-amber-400" /> Live Assistance Log
+                    </span>
+                    {waiterCalls.length > 0 && (
+                      <span className="h-2 w-2 bg-amber-400 rounded-full animate-ping"></span>
+                    )}
+                  </h2>
+
+                  {waiterCalls.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-slate-500">
+                      No active waiter assistance requested.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-1">
+                      {waiterCalls.map(call => (
+                        <div
+                          key={call.id}
+                          className="flex justify-between items-center p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl"
+                        >
+                          <div>
+                            <p className="text-xs font-bold text-white leading-tight">
+                              {call.tableName} • {call.requestType.toUpperCase()}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1" suppressHydrationWarning>
+                              {new Date(call.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => handleResolveWaiterCall(call.id)}
+                            className="p-1 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 rounded-lg transition-all"
+                            title="Resolve Alert"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                {qrResolvedUrl && !qrError && (
-                  <div className="border border-slate-800/60 p-4 rounded-xl flex flex-col items-center gap-3 bg-slate-900/40 transition-all duration-300">
-                    <div className="w-32 h-32 bg-white rounded-lg flex items-center justify-center p-2 relative overflow-hidden shadow-inner group">
-                      {isGeneratingQr ? (
-                        <div className="absolute inset-0 bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center text-slate-500 text-[10px] font-bold animate-pulse">
-                          <QrCode className="w-8 h-8 text-emerald-500/40 mb-1" />
-                          Rendering...
-                        </div>
-                      ) : qrCodeDataUrl ? (
-                        <img
-                          src={qrCodeDataUrl}
-                          alt={`Table ${qrTableId} QR Code`}
-                          className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                {/* QR Generator Widget */}
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 shadow-lg">
+                  <h2 className="text-sm font-extrabold text-white flex items-center gap-1.5 border-b border-slate-800 pb-2 mb-4">
+                    <QrCode className="w-4 h-4 text-primary" /> Dynamic QR Code Generator
+                  </h2>
+
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Dining Table ID</label>
+                      <div className="flex gap-2 mt-1">
+                        <input
+                          type="text"
+                          placeholder="E.g., T12"
+                          value={qrTableId}
+                          onChange={(e) => {
+                            setQrTableId(e.target.value);
+                            if (qrError) setQrError('');
+                          }}
+                          className={`flex-1 bg-slate-900 border text-xs px-3 py-2 rounded-lg text-white focus:outline-none transition-colors duration-200 ${qrError ? 'border-rose-500 focus:border-rose-500' : 'border-slate-800/85 focus:border-slate-700'
+                            }`}
                         />
-                      ) : (
-                        <div className="w-full h-full border border-slate-200 flex flex-col items-center justify-center text-slate-800 text-[10px] text-center font-bold font-sans">
-                          <QrCode className="w-10 h-10 text-primary mb-1 animate-pulse" />
-                          QR CODE
-                        </div>
+                        <ButtonLoader
+                          loading={isGeneratingQr}
+                          onClick={() => handleGenerateQR()}
+                          className="flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 text-xs font-black px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20"
+                        >
+                          Generate
+                        </ButtonLoader>
+                      </div>
+                      {qrError && (
+                        <p className="text-[10px] text-rose-500 font-semibold mt-1">
+                          {qrError}
+                        </p>
                       )}
                     </div>
 
-                    <div className="text-center w-full">
-                      <p className="text-[10px] text-slate-400 font-semibold block">Scan URL Target:</p>
-                      <div className="relative mt-1 flex items-center">
-                        <input
-                          type="text"
-                          readOnly
-                          value={qrResolvedUrl}
-                          className="w-full bg-slate-950 border border-slate-850 px-2 py-1.5 text-[9px] text-slate-300 rounded text-center truncate focus:outline-none pr-8"
-                        />
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(qrResolvedUrl);
-                            useToastStore.getState().showSuccess('Target URL copied to clipboard!');
-                          }}
-                          className="absolute right-1 text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-all cursor-pointer"
-                          title="Copy to clipboard"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+                    {qrResolvedUrl && !qrError && (
+                      <div className="border border-slate-800/60 p-4 rounded-xl flex flex-col items-center gap-3 bg-slate-900/40 transition-all duration-300">
+                        <div className="w-32 h-32 bg-white rounded-lg flex items-center justify-center p-2 relative overflow-hidden shadow-inner group">
+                          {isGeneratingQr ? (
+                            <div className="absolute inset-0 bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center text-slate-500 text-[10px] font-bold animate-pulse">
+                              <QrCode className="w-8 h-8 text-emerald-500/40 mb-1" />
+                              Rendering...
+                            </div>
+                          ) : qrCodeDataUrl ? (
+                            <img
+                              src={qrCodeDataUrl}
+                              alt={`Table ${qrTableId} QR Code`}
+                              className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full border border-slate-200 flex flex-col items-center justify-center text-slate-800 text-[10px] text-center font-bold font-sans">
+                              <QrCode className="w-10 h-10 text-primary mb-1 animate-pulse" />
+                              QR CODE
+                            </div>
+                          )}
+                        </div>
 
-        </div>
+                        <div className="text-center w-full">
+                          <p className="text-[10px] text-slate-400 font-semibold block">Scan URL Target:</p>
+                          <div className="relative mt-1 flex items-center">
+                            <input
+                              type="text"
+                              readOnly
+                              value={qrResolvedUrl}
+                              className="w-full bg-slate-950 border border-slate-850 px-2 py-1.5 text-[9px] text-slate-300 rounded text-center truncate focus:outline-none pr-8"
+                            />
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(qrResolvedUrl);
+                                useToastStore.getState().showSuccess('Target URL copied to clipboard!');
+                              }}
+                              className="absolute right-1 text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition-all cursor-pointer"
+                              title="Copy to clipboard"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </>
+        ) : (
+          <WaiterDashboardComponent
+            tables={tables}
+            waiterCalls={waiterCalls}
+            handleResolveWaiterCall={handleResolveWaiterCall}
+            isLoading={isLoading}
+            isRefreshing={isRefreshing}
+            fetchDashboardData={fetchDashboardData}
+            stats={stats}
+            restaurantName={restaurantName}
+            adminName={adminName}
+            tenantId={tenantId}
+            setTables={setTables}
+            kots={kots}
+            updatingKotId={updatingKotId}
+            handleUpdateStatus={handleUpdateStatus}
+            isAdminView={true}
+          />
+        )}
       </div>
     </div>
   );
@@ -833,10 +886,10 @@ function KitchenStaffDashboard({
   adminName,
 }: KitchenStaffProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED'>('ALL');
 
   const kitchenKots = useMemo(() => {
-    return kots.filter(kot => ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'].includes(kot.status));
+    return kots.filter(kot => ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'SERVED'].includes(kot.status));
   }, [kots]);
 
   const filteredKots = useMemo(() => {
@@ -846,7 +899,7 @@ function KitchenStaffDashboard({
         kot.kotNumber.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesFilter =
-        statusFilter === 'ALL' || kot.status === statusFilter;
+        statusFilter === 'ALL' ? kot.status !== 'SERVED' : kot.status === statusFilter;
 
       return matchesSearch && matchesFilter;
     });
@@ -912,7 +965,7 @@ function KitchenStaffDashboard({
         </div>
 
         <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto">
-          {(['ALL', 'PENDING', 'ACCEPTED', 'PREPARING', 'READY'] as const).map(f => (
+          {(['ALL', 'PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'SERVED'] as const).map(f => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
@@ -1043,6 +1096,17 @@ function KitchenStaffDashboard({
 }
 
 // ─── WAITER OPERATIONS HUB ───────────────────────────────────────────────────
+interface WaiterCartItem {
+  cartItemId: string;
+  menuItemId: string;
+  name: string;
+  price: number;
+  basePrice: number;
+  customizationPrice: number;
+  quantity: number;
+  customizations: Array<{ optionName: string; price: number }>;
+}
+
 interface WaiterDashboardProps {
   tables: Table[];
   waiterCalls: WaiterCall[];
@@ -1058,6 +1122,7 @@ interface WaiterDashboardProps {
   kots: KOT[];
   updatingKotId: string | null;
   handleUpdateStatus: (kotId: string, nextStatus: KOT['status']) => Promise<void>;
+  isAdminView?: boolean;
 }
 
 function WaiterDashboardComponent({
@@ -1075,6 +1140,7 @@ function WaiterDashboardComponent({
   kots,
   updatingKotId,
   handleUpdateStatus,
+  isAdminView = false,
 }: WaiterDashboardProps) {
   const [updatingTableId, setUpdatingTableId] = useState<string | null>(null);
 
@@ -1082,17 +1148,59 @@ function WaiterDashboardComponent({
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedOrderTable, setSelectedOrderTable] = useState<Table | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
-  const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
+  const [waiterCart, setWaiterCart] = useState<WaiterCartItem[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [menuLoading, setMenuLoading] = useState(false);
   const [orderSubmitting, setOrderSubmitting] = useState(false);
+
+  // Customization States
+  const [selectedCustomizingItem, setSelectedCustomizingItem] = useState<any | null>(null);
+  const [customizerSelections, setCustomizerSelections] = useState<any[]>([]);
+  const [waiterSpecialInstructions, setWaiterSpecialInstructions] = useState('');
+
+  const { emitEvent } = useSocket(tenantId || undefined);
 
   useEffect(() => {
     if (isOrderModalOpen) {
       setMenuLoading(true);
       api.get('/menu-items')
         .then(res => {
-          setMenuItems(res.data || []);
+          const mappedItems = (res.data || []).map((item: any) => {
+            const customizationGroups: any[] = [];
+            if (item.variants && item.variants.length > 0) {
+              customizationGroups.push({
+                id: `variants-${item.id}`,
+                name: 'Select Size / Portion',
+                minSelect: 1,
+                maxSelect: 1,
+                options: item.variants.map((v: any) => ({
+                  id: v.id,
+                  name: v.name,
+                  price: Math.max(0, Number(v.price) - Number(item.price)),
+                  isAvailable: v.isActive
+                }))
+              });
+            }
+            if (item.addons && item.addons.length > 0) {
+              customizationGroups.push({
+                id: `addons-${item.id}`,
+                name: 'Add-ons / Customizers',
+                minSelect: 0,
+                maxSelect: item.addons.length,
+                options: item.addons.map((a: any) => ({
+                  id: a.id,
+                  name: a.name,
+                  price: Number(a.price),
+                  isAvailable: a.isActive
+                }))
+              });
+            }
+            return {
+              ...item,
+              customizationGroups
+            };
+          });
+          setMenuItems(mappedItems);
         })
         .catch(err => {
           console.error('Failed to load menu items:', err);
@@ -1120,16 +1228,123 @@ function WaiterDashboardComponent({
 
   const handleOpenOrderModal = (table: Table) => {
     setSelectedOrderTable(table);
-    setOrderQuantities({});
+    setWaiterCart([]);
     setOrderSearchTerm('');
+    setWaiterSpecialInstructions('');
     setIsOrderModalOpen(true);
   };
 
-  const handleQtyChange = (itemId: string, delta: number) => {
-    setOrderQuantities(prev => {
-      const current = prev[itemId] || 0;
-      const next = Math.max(0, current + delta);
-      return { ...prev, [itemId]: next };
+  const handleAddNoCustItem = (item: any) => {
+    setWaiterCart(prev => {
+      const existing = prev.find(i => i.menuItemId === item.id && i.customizations.length === 0);
+      if (existing) {
+        return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, {
+        cartItemId: `item-${item.id}-${Date.now()}`,
+        menuItemId: item.id,
+        name: item.name,
+        basePrice: Number(item.price),
+        customizationPrice: 0,
+        price: Number(item.price),
+        quantity: 1,
+        customizations: []
+      }];
+    });
+  };
+
+  const handleOpenCustomizer = (item: any) => {
+    setSelectedCustomizingItem(item);
+    const defaults = item.customizationGroups
+      .filter((g: any) => g.minSelect === 1 && g.maxSelect === 1 && g.options.length > 0)
+      .map((g: any) => ({
+        optionId: g.options[0].id,
+        optionName: g.options[0].name,
+        price: g.options[0].price,
+        groupId: g.id,
+        groupName: g.name
+      }));
+    setCustomizerSelections(defaults);
+  };
+
+  const handleCustomizerOptionToggle = (group: any, option: any) => {
+    if (group.maxSelect === 1) {
+      setCustomizerSelections(prev => [
+        ...prev.filter(sel => sel.groupId !== group.id),
+        {
+          optionId: option.id,
+          optionName: option.name,
+          price: option.price,
+          groupId: group.id,
+          groupName: group.name
+        }
+      ]);
+    } else {
+      setCustomizerSelections(prev => {
+        const exists = prev.some(sel => sel.optionId === option.id);
+        if (exists) {
+          return prev.filter(sel => sel.optionId !== option.id);
+        }
+        return [
+          ...prev,
+          {
+            optionId: option.id,
+            optionName: option.name,
+            price: option.price,
+            groupId: group.id,
+            groupName: group.name
+          }
+        ];
+      });
+    }
+  };
+
+  const handleAddCustomizedItemToCart = () => {
+    if (!selectedCustomizingItem) return;
+    const customPrice = customizerSelections.reduce((acc, opt) => acc + (opt.price || 0), 0);
+    const customizationsList = customizerSelections.map(opt => ({
+      optionName: opt.optionName,
+      price: opt.price
+    }));
+
+    setWaiterCart(prev => {
+      const sortedCustNames = [...customizationsList].map(c => c.optionName).sort().join(',');
+      const existing = prev.find(i => {
+        if (i.menuItemId !== selectedCustomizingItem.id) return false;
+        const existingCustNames = [...i.customizations].map(c => c.optionName).sort().join(',');
+        return sortedCustNames === existingCustNames;
+      });
+
+      if (existing) {
+        return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+
+      return [...prev, {
+        cartItemId: `item-${selectedCustomizingItem.id}-${Date.now()}`,
+        menuItemId: selectedCustomizingItem.id,
+        name: selectedCustomizingItem.name,
+        basePrice: Number(selectedCustomizingItem.price),
+        customizationPrice: customPrice,
+        price: Number(selectedCustomizingItem.price) + customPrice,
+        quantity: 1,
+        customizations: customizationsList
+      }];
+    });
+
+    setSelectedCustomizingItem(null);
+    setCustomizerSelections([]);
+  };
+
+  const handleUpdateCartItemQty = (cartItemId: string, delta: number) => {
+    setWaiterCart(prev => {
+      return prev.map(item => {
+        if (item.cartItemId === cartItemId) {
+          const nextQty = Math.max(0, item.quantity + delta);
+          if (nextQty === 0) return null;
+          return { ...item, quantity: nextQty };
+        }
+        return item;
+      }).filter(Boolean) as WaiterCartItem[];
     });
   };
 
@@ -1137,29 +1352,57 @@ function WaiterDashboardComponent({
     e.preventDefault();
     if (!selectedOrderTable) return;
 
-    const itemsToSubmit = Object.entries(orderQuantities)
-      .filter(([_, qty]) => qty > 0)
-      .map(([itemId, qty]) => ({
-        menuItemId: itemId,
-        quantity: qty,
-      }));
-
-    if (itemsToSubmit.length === 0) {
+    if (waiterCart.length === 0) {
       useToastStore.getState().showError('Please add at least one item to place an order.');
       return;
     }
 
+    const itemsToSubmit = waiterCart.map(item => ({
+      menuItemId: item.menuItemId,
+      quantity: item.quantity,
+      customizations: item.customizations
+    }));
+
     try {
       setOrderSubmitting(true);
-      await api.post('/orders', {
+      const res = await api.post('/orders', {
         tableId: selectedOrderTable.id,
         items: itemsToSubmit,
+        specialInstructions: waiterSpecialInstructions || undefined,
       });
+
+      // Emit event through realtime socket using standard structure
+      const dbOrder = res.data;
+      const orderPayload = {
+        orderId: dbOrder.id,
+        tenantId: tenantId,
+        tableId: selectedOrderTable.id,
+        tableName: selectedOrderTable.name,
+        items: waiterCart.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          isVeg: menuItems.find(m => m.id === item.menuItemId)?.isVeg ?? true,
+          customizations: item.customizations.map(c => c.optionName)
+        })),
+        specialInstructions: waiterSpecialInstructions,
+        taxSummary: {
+          subtotal: Number(dbOrder.subtotal),
+          cgst: dbOrder.cgst ? Number(dbOrder.cgst) : null,
+          sgst: dbOrder.sgst ? Number(dbOrder.sgst) : null,
+          serviceCharge: dbOrder.serviceCharge ? Number(dbOrder.serviceCharge) : null,
+          grandTotal: Number(dbOrder.grandTotal)
+        },
+        createdAt: dbOrder.createdAt
+      };
+      
+      // Notify floor gateway
+      emitEvent('order:create', orderPayload);
 
       useToastStore.getState().showSuccess(`Order placed successfully for ${selectedOrderTable.name}!`);
       setIsOrderModalOpen(false);
-      setOrderQuantities({});
+      setWaiterCart([]);
       setSelectedOrderTable(null);
+      setWaiterSpecialInstructions('');
       await fetchDashboardData();
     } catch (err: any) {
       console.error('Failed to place order:', err);
@@ -1181,30 +1424,32 @@ function WaiterDashboardComponent({
   }, [menuItems, orderSearchTerm]);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-slate-950 min-h-screen">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2">
-            Waiter Operations Hub
-            <span className="text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded">
-              Waiter Mode
-            </span>
-            {isRefreshing && (
-              <InlineLoader message="Syncing..." className="ml-2" />
-            )}
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">Manage dining floor layouts, active tickets, and live customer assistance alerts.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchDashboardData}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-lg transition-all text-white disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
-        </div>
-      </header>
+    <div className={isAdminView ? "space-y-6" : "p-4 md:p-6 space-y-6 bg-slate-950 min-h-screen"}>
+      {!isAdminView && (
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+          <div>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              Waiter Operations Hub
+              <span className="text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded">
+                Waiter Mode
+              </span>
+              {isRefreshing && (
+                <InlineLoader message="Syncing..." className="ml-2" />
+              )}
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">Manage dining floor layouts, active tickets, and live customer assistance alerts.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchDashboardData}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-lg transition-all text-white disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+        </header>
+      )}
 
       <div className="grid grid-cols-1 gap-4 mb-6">
         <div className="bg-slate-950/40 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between shadow-md">
@@ -1365,119 +1610,338 @@ function WaiterDashboardComponent({
 
       {/* Modal: Waiter Place Order */}
       {isOrderModalOpen && selectedOrderTable && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden animate-zoomIn flex flex-col md:flex-row h-[85vh]">
+            
+            {/* Left: Menu Selection */}
+            <div className="flex-1 flex flex-col min-h-0 border-r border-slate-800">
+              <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+                <div>
+                  <h3 className="text-sm font-black text-white">
+                    Place Order — {selectedOrderTable.name}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Select menu items and configure portion/add-ons.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsOrderModalOpen(false)}
+                  className="md:hidden text-slate-500 hover:text-slate-300 font-bold text-xs"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+              <div className="p-4 bg-slate-950/50 border-b border-slate-800 flex items-center gap-2">
+                <Search className="w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Search menu catalog..."
+                  value={orderSearchTerm}
+                  onChange={e => setOrderSearchTerm(e.target.value)}
+                  className="bg-transparent border-none outline-none focus:ring-0 text-xs text-white placeholder-slate-600 w-full"
+                />
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {menuLoading ? (
+                  <div className="flex justify-center py-10">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                  </div>
+                ) : filteredMenuItems.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-500">
+                    No menu items found.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {filteredMenuItems.map(item => {
+                      const hasCust = item.customizationGroups && item.customizationGroups.length > 0;
+                      // Calculate how many of this item are in the cart
+                      const cartCount = waiterCart
+                        .filter(ci => ci.menuItemId === item.id)
+                        .reduce((acc, ci) => acc + ci.quantity, 0);
+
+                      return (
+                        <div key={item.id} className="flex flex-col justify-between p-3.5 bg-slate-950/40 border border-slate-800/60 rounded-xl hover:border-slate-800 transition-all">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-white leading-tight">{item.name}</span>
+                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${item.isVeg ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                {item.isVeg ? 'VEG' : 'NON-VEG'}
+                              </span>
+                            </div>
+                            {item.description && (
+                              <p className="text-[10px] text-slate-500 line-clamp-2 mt-1 leading-snug">{item.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-900/60">
+                            <span className="text-[10px] font-bold text-slate-350">₹{Number(item.price).toFixed(2)}</span>
+                            
+                            <div className="flex items-center gap-2">
+                              {hasCust ? (
+                                <div className="flex items-center gap-1.5">
+                                  {cartCount > 0 && (
+                                    <span className="text-[9px] font-black bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-full">
+                                      {cartCount} in draft
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenCustomizer(item)}
+                                    className="px-2.5 py-1 bg-purple-650 hover:bg-purple-600 text-white font-black text-[9px] rounded-lg transition-all flex items-center gap-1"
+                                  >
+                                    Add/Customize
+                                  </button>
+                                </div>
+                              ) : (
+                                <div>
+                                  {cartCount > 0 ? (
+                                    <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800/85 rounded-lg p-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const ci = waiterCart.find(i => i.menuItemId === item.id);
+                                          if (ci) handleUpdateCartItemQty(ci.cartItemId, -1);
+                                        }}
+                                        className="w-5.5 h-5.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center transition-all"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="text-[10px] font-black text-white w-4 text-center">{cartCount}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddNoCustItem(item)}
+                                        className="w-5.5 h-5.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center transition-all"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddNoCustItem(item)}
+                                      className="px-3 py-1 bg-purple-650 hover:bg-purple-500 text-white font-black text-[9px] rounded-lg transition-all"
+                                    >
+                                      Add
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Draft Order Summary */}
+            <div className="w-full md:w-80 bg-slate-950 border-t md:border-t-0 md:border-l border-slate-800 flex flex-col min-h-0">
+              <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/80">
+                <div>
+                  <h4 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <ShoppingCart className="w-3.5 h-3.5 text-purple-400" /> Draft Order
+                  </h4>
+                  <p className="text-[9px] text-slate-500 mt-0.5">Review items before placing order.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsOrderModalOpen(false)}
+                  className="hidden md:block text-slate-500 hover:text-slate-350 font-bold text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                {waiterCart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center py-10">
+                    <ShoppingCart className="w-8 h-8 text-slate-850 mb-2" />
+                    <p className="text-[10px]">No items added to draft yet.</p>
+                  </div>
+                ) : (
+                  waiterCart.map(item => (
+                    <div key={item.cartItemId} className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-xl space-y-1.5">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-xs text-white block">{item.name}</span>
+                          {item.customizations.length > 0 && (
+                            <span className="text-[9px] text-purple-450 block leading-tight">
+                              {item.customizations.map(c => c.optionName).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-black text-white">
+                          ₹{(item.price * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-1.5 border-t border-slate-850/40">
+                        <span className="text-[9px] text-slate-500">₹{item.price.toFixed(2)} each</span>
+                        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-850 rounded-lg p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCartItemQty(item.cartItemId, -1)}
+                            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-[10px] flex items-center justify-center transition-all"
+                          >
+                            -
+                          </button>
+                          <span className="text-[10px] font-black text-white w-4 text-center">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCartItemQty(item.cartItemId, 1)}
+                            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-[10px] flex items-center justify-center transition-all"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Special Instructions & Summary */}
+              <div className="p-4 border-t border-slate-800 bg-slate-950 space-y-3">
+                {waiterCart.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Special Instructions</label>
+                    <textarea
+                      placeholder="E.g., Make spicy, less salt, allergies..."
+                      value={waiterSpecialInstructions}
+                      onChange={e => setWaiterSpecialInstructions(e.target.value)}
+                      rows={2}
+                      className="w-full text-[10px] bg-slate-900 border border-slate-800 rounded-lg p-2 text-white placeholder-slate-600 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none"
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-xs font-black text-white pt-2 border-t border-slate-900">
+                  <span>Grand Total</span>
+                  <span>
+                    ₹{waiterCart.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsOrderModalOpen(false)}
+                    className="flex-1 py-2 text-[10px] font-bold border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all text-center"
+                  >
+                    Cancel
+                  </button>
+                  <ButtonLoader
+                    loading={orderSubmitting}
+                    onClick={handlePlaceOrderSubmit}
+                    className="flex-1 py-2 text-[10px] font-black bg-purple-650 hover:bg-purple-600 text-white rounded-lg shadow-lg shadow-purple-500/20 transition-all flex justify-center items-center"
+                  >
+                    Place Order
+                  </ButtonLoader>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Waiter Customization Nested Sub-Modal */}
+      {isOrderModalOpen && selectedOrderTable && selectedCustomizingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+            
+            <div className="px-5 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
               <div>
-                <h3 className="text-sm font-black text-white">
-                  Place Order — {selectedOrderTable.name}
-                </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">Select menu items and specify quantities.</p>
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                  Customize Item
+                </h4>
+                <p className="text-[10px] text-purple-400 font-bold mt-0.5">{selectedCustomizingItem.name}</p>
               </div>
               <button
-                onClick={() => setIsOrderModalOpen(false)}
-                className="text-slate-500 hover:text-slate-300 font-bold text-xs"
+                type="button"
+                onClick={() => setSelectedCustomizingItem(null)}
+                className="text-slate-500 hover:text-slate-350 font-bold text-xs"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-4 bg-slate-950/50 border-b border-slate-800 flex items-center gap-2">
-              <Search className="w-4 h-4 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Search menu catalog..."
-                value={orderSearchTerm}
-                onChange={e => setOrderSearchTerm(e.target.value)}
-                className="bg-transparent border-none outline-none focus:ring-0 text-xs text-white placeholder-slate-600 w-full"
-              />
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {menuLoading ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
-                </div>
-              ) : filteredMenuItems.length === 0 ? (
-                <div className="text-center py-10 text-xs text-slate-500">
-                  No menu items found.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredMenuItems.map(item => {
-                    const qty = orderQuantities[item.id] || 0;
-                    return (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-950/40 border border-slate-800/60 rounded-xl">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-white">{item.name}</span>
-                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${item.isVeg ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                              }`}>
-                              {item.isVeg ? 'VEG' : 'NON-VEG'}
-                            </span>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {selectedCustomizingItem.customizationGroups.map((group: any) => (
+                <div key={group.id} className="space-y-2 border-b border-slate-850/60 pb-3 last:border-0 last:pb-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-white uppercase tracking-wide">{group.name}</span>
+                    <span className="text-[8px] text-slate-500">
+                      {group.maxSelect === 1 ? 'Select one' : `Select up to ${group.maxSelect}`}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    {group.options.map((option: any) => {
+                      const isSelected = customizerSelections.some(sel => sel.optionId === option.id);
+                      return (
+                        <button
+                          type="button"
+                          key={option.id}
+                          disabled={!option.isAvailable}
+                          onClick={() => handleCustomizerOptionToggle(group, option)}
+                          className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-left transition-all ${
+                            !option.isAvailable ? 'opacity-40 cursor-not-allowed border-slate-850 bg-slate-950/20' :
+                            isSelected
+                              ? 'border-purple-500/50 bg-purple-500/5 text-white'
+                              : 'border-slate-800/80 bg-slate-950/20 text-slate-300 hover:border-slate-850 hover:bg-slate-950/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                              isSelected
+                                ? 'border-purple-500 bg-purple-500 text-white'
+                                : 'border-slate-700 bg-transparent'
+                            }`}>
+                              {isSelected && <span className="text-[8px] font-black">✓</span>}
+                            </div>
+                            <span className="text-[10px] font-bold">{option.name}</span>
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-1">₹{Number(item.price).toFixed(2)}</p>
-                        </div>
-
-                        <div className="flex items-center gap-2.5">
-                          {qty > 0 ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleQtyChange(item.id, -1)}
-                                className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center transition-all"
-                              >
-                                -
-                              </button>
-                              <span className="text-xs font-black text-white w-4 text-center">{qty}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleQtyChange(item.id, 1)}
-                                className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center transition-all"
-                              >
-                                +
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleQtyChange(item.id, 1)}
-                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-black text-[10px] rounded-lg transition-all"
-                            >
-                              Add
-                            </button>
+                          
+                          {option.price > 0 && (
+                            <span className="text-[9px] font-bold text-slate-400">
+                              +₹{Number(option.price).toFixed(2)}
+                            </span>
                           )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
 
-            <div className="p-6 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
-              <div>
-                <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Total Items Selected</p>
-                <p className="text-sm font-black text-white mt-0.5">
-                  {Object.values(orderQuantities).reduce((a, b) => a + b, 0)} items
-                </p>
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <span className="text-[8px] text-slate-500 uppercase font-bold tracking-wider block">Price with selections</span>
+                <span className="text-xs font-black text-white block">
+                  ₹{(Number(selectedCustomizingItem.price) + customizerSelections.reduce((acc, opt) => acc + opt.price, 0)).toFixed(2)}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsOrderModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-bold border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all"
+                  onClick={() => setSelectedCustomizingItem(null)}
+                  className="px-3 py-1.5 text-[9px] font-bold border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-all"
                 >
                   Cancel
                 </button>
-                <ButtonLoader
-                  loading={orderSubmitting}
-                  onClick={handlePlaceOrderSubmit}
-                  className="px-5 py-2.5 text-xs font-black bg-purple-650 hover:bg-purple-600 text-white rounded-lg shadow-lg shadow-purple-500/20 transition-all"
+                <button
+                  type="button"
+                  onClick={handleAddCustomizedItemToCart}
+                  className="px-4 py-1.5 text-[9px] font-black bg-purple-650 hover:bg-purple-600 text-white rounded-lg shadow-lg shadow-purple-500/20 transition-all"
                 >
-                  Place Order
-                </ButtonLoader>
+                  Add to Draft
+                </button>
               </div>
             </div>
 

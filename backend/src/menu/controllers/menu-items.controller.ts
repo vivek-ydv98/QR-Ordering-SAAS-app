@@ -18,13 +18,13 @@ export class MenuItemsController {
   }
 
   @Get()
-  @Roles('RESTAURANT_ADMIN', 'MANAGER')
+  @Roles('RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER')
   findAll(@Query('categoryId') categoryId?: string) {
     return this.menuItemsService.findAll(categoryId);
   }
 
   @Get(':id')
-  @Roles('RESTAURANT_ADMIN', 'MANAGER')
+  @Roles('RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER')
   findOne(@Param('id') id: string) {
     return this.menuItemsService.findOne(id);
   }
