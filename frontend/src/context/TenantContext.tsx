@@ -54,6 +54,7 @@ export const TenantProvider: React.FC<{
             isVegOnly: data.restaurantSettings?.isVegOnly ?? false,
             allowUpiPayments: data.restaurantSettings?.allowUpiPayments ?? true,
             allowWaiterCall: data.restaurantSettings?.allowWaiterCall ?? true,
+            allowedFoodTypes: data.restaurantSettings?.allowedFoodTypes ?? ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'],
             taxRates: {
               cgst: data.restaurantSettings?.cgstRate === null ? null : Number(data.restaurantSettings?.cgstRate ?? 2.5),
               sgst: data.restaurantSettings?.sgstRate === null ? null : Number(data.restaurantSettings?.sgstRate ?? 2.5),

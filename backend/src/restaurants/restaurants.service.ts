@@ -120,6 +120,7 @@ export class RestaurantsService {
         cgstRate: 2.5,
         sgstRate: 2.5,
         serviceChargeRate: 5.0,
+        allowedFoodTypes: ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'],
       },
     });
 
@@ -245,12 +246,20 @@ export class RestaurantsService {
 
   async getMenu(slugOrId: string, includeUnavailable = false) {
     const restaurantId = await this.resolveRestaurantId(slugOrId);
+    const settings = await this.prisma.rawClient.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    const allowedFoodTypes = settings?.allowedFoodTypes ?? ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'];
+
     return this.prisma.rawClient.menuCategory.findMany({
       where: { restaurantId, ...(includeUnavailable ? {} : { isAvailable: true }) },
       orderBy: { sortOrder: 'asc' },
       include: {
         menuItems: {
-          where: includeUnavailable ? {} : { isAvailable: true },
+          where: {
+            ...(includeUnavailable ? {} : { isAvailable: true }),
+            foodType: { in: allowedFoodTypes },
+          },
           orderBy: { name: 'asc' },
           include: {
             variants: true,
@@ -502,7 +511,12 @@ export class RestaurantsService {
 
   async updateRestaurantSettings(
     restaurantId: string,
-    data: { cgstRate?: number | null; sgstRate?: number | null; serviceChargeRate?: number | null }
+    data: { 
+      cgstRate?: number | null; 
+      sgstRate?: number | null; 
+      serviceChargeRate?: number | null;
+      allowedFoodTypes?: any[];
+    }
   ) {
     const settings = await this.prisma.client.restaurantSetting.findUnique({
       where: { restaurantId },
@@ -511,12 +525,24 @@ export class RestaurantsService {
       throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
     }
 
+    if (data.allowedFoodTypes !== undefined) {
+      if (!Array.isArray(data.allowedFoodTypes) || data.allowedFoodTypes.length === 0) {
+        throw new ValidationError('At least one food type must be allowed.', 'allowedFoodTypes');
+      }
+      const validTypes = ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'];
+      const invalid = data.allowedFoodTypes.filter(t => !validTypes.includes(t));
+      if (invalid.length > 0) {
+        throw new ValidationError(`Invalid food type(s): ${invalid.join(', ')}`, 'allowedFoodTypes');
+      }
+    }
+
     return this.prisma.client.restaurantSetting.update({
       where: { restaurantId },
       data: {
         cgstRate: data.cgstRate === null || data.cgstRate === undefined ? null : data.cgstRate,
         sgstRate: data.sgstRate === null || data.sgstRate === undefined ? null : data.sgstRate,
         serviceChargeRate: data.serviceChargeRate === null || data.serviceChargeRate === undefined ? null : data.serviceChargeRate,
+        ...(data.allowedFoodTypes !== undefined && { allowedFoodTypes: data.allowedFoodTypes }),
       },
     });
   }

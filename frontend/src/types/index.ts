@@ -15,6 +15,7 @@ export interface TenantConfig {
   isVegOnly: boolean;
   allowUpiPayments: boolean;
   allowWaiterCall: boolean;
+  allowedFoodTypes: ('VEG' | 'NON_VEG' | 'EGG' | 'VEGAN' | 'JAIN')[];
   taxRates: {
     cgst: number | null; // percentage or null
     sgst: number | null; // percentage or null
@@ -52,6 +53,7 @@ export interface MenuItem {
   description: string;
   price: number;
   isVeg: boolean;
+  foodType: 'VEG' | 'NON_VEG' | 'EGG' | 'VEGAN' | 'JAIN';
   isAvailable: boolean;
   imageUrl?: string;
   categoryId: string;

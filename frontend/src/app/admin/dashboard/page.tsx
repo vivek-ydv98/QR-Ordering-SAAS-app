@@ -1170,11 +1170,11 @@ function WaiterDashboardComponent({
   };
 
   const activeTickets = useMemo(() => {
-    return kots.filter(kot => ['PREPARING', 'READY'].includes(kot.status));
+    return kots.filter(kot => ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'].includes(kot.status));
   }, [kots]);
 
   const filteredMenuItems = useMemo(() => {
-    return menuItems.filter(item => 
+    return menuItems.filter(item =>
       item.name.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
       (item.category?.name && item.category.name.toLowerCase().includes(orderSearchTerm.toLowerCase()))
     );
@@ -1219,108 +1219,113 @@ function WaiterDashboardComponent({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div>
-            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">Dining Table Layout</h2>
-            {tables.length === 0 ? (
-              <div className="flex flex-col items-center justify-center bg-slate-900/10 border border-dashed border-slate-800/80 rounded-xl py-16 text-slate-500 text-sm">
-                <Coffee className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
-                <p className="font-semibold text-slate-450">No tables loaded.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {tables.map(table => {
-                  const isOccupied = table.status === 'OCCUPIED';
-                  const statusBg = isOccupied ? 'bg-purple-950/20 border-purple-500/40' : 'bg-slate-900/40 border-slate-800';
-                  const badgeColor = isOccupied ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        <div className="lg:col-span-2">
+          <div className="bg-slate-950/40 border border-slate-800/80 rounded-xl p-6 shadow-lg">
+            {/* Dining Table Layout with Integrated Tickets */}
+            <div className="space-y-4">
+              <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-800/80">
+                <Coffee className="w-4 h-4 text-purple-400" /> Dining Table & Active Tickets Layout
+              </h2>
+              {tables.length === 0 ? (
+                <div className="flex flex-col items-center justify-center bg-slate-900/10 border border-dashed border-slate-800/80 rounded-xl py-16 text-slate-500 text-sm">
+                  <Coffee className="w-10 h-10 text-slate-700 mb-3 animate-pulse" />
+                  <p className="font-semibold text-slate-450">No tables loaded.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tables.map(table => {
+                    const isOccupied = table.status === 'OCCUPIED';
+                    const statusBg = isOccupied ? 'bg-purple-950/20 border-purple-500/40' : 'bg-slate-900/40 border-slate-800';
+                    const badgeColor = isOccupied ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                    const tableTickets = activeTickets.filter(kot => kot.tableId === table.id);
 
-                  return (
-                    <div key={table.id} className={`p-4 rounded-xl border flex flex-col justify-between h-44 transition-all duration-300 ${statusBg}`}>
-                      <div className="flex justify-between items-start">
-                        <span className="font-extrabold text-sm text-white">{table.name}</span>
-                        <span className={`text-[8px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded ${badgeColor}`}>
-                          {table.status}
-                        </span>
-                      </div>
+                    return (
+                      <div key={table.id} className={`p-4 rounded-xl border flex flex-col justify-between gap-4 transition-all duration-300 ${statusBg}`}>
+                        <div className="space-y-3.5">
+                          <div className="flex justify-between items-start">
+                            <span className="font-extrabold text-sm text-white">{table.name}</span>
+                            <span className={`text-[8px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded ${badgeColor}`}>
+                              {table.status}
+                            </span>
+                          </div>
 
-                      <div className="mt-2 flex flex-col gap-1.5">
-                        <label className="text-[8px] text-slate-500 font-bold uppercase">Change Status</label>
-                        <div className="grid grid-cols-2 gap-1 bg-slate-950 p-0.5 rounded border border-slate-800">
-                          {(['VACANT', 'OCCUPIED'] as const).map(st => (
-                            <button
-                              key={st}
-                              disabled={updatingTableId === table.id}
-                              onClick={() => handleUpdateTableStatus(table.id, st)}
-                              className={`text-[8px] font-bold py-1 rounded transition-all ${table.status === st ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'
-                                }`}
-                            >
-                              {st}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[8px] text-slate-550 font-bold uppercase">Change Status</label>
+                            <div className="grid grid-cols-2 gap-1 bg-slate-950 p-0.5 rounded border border-slate-800/80">
+                              {(['VACANT', 'OCCUPIED'] as const).map(st => (
+                                <button
+                                  key={st}
+                                  disabled={updatingTableId === table.id}
+                                  onClick={() => handleUpdateTableStatus(table.id, st)}
+                                  className={`text-[8px] font-bold py-1 rounded transition-all ${table.status === st ? 'bg-slate-800 text-white' : 'text-slate-550 hover:text-slate-350'
+                                    }`}
+                                >
+                                  {st}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
 
-                      <button
-                        onClick={() => handleOpenOrderModal(table)}
-                        className="mt-2 w-full py-1.5 text-[9px] font-black bg-purple-650 hover:bg-purple-600 text-white rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-purple-500/10"
-                      >
-                        <ShoppingCart className="w-3 h-3" /> Place Order
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">Active Kitchen Tickets</h2>
-            {activeTickets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center bg-slate-900/10 border border-dashed border-slate-800/80 rounded-xl py-12 text-slate-500 text-xs">
-                <p>No active kitchen tickets in preparation.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {activeTickets.map(kot => (
-                  <div key={kot.id} className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl space-y-3 shadow-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-xs text-white">{kot.tableName}</h4>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{kot.kotNumber} • {kot.elapsedMinutes}m elapsed</p>
-                      </div>
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                        kot.status === 'READY'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      }`}>
-                        {kot.status}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1 text-slate-300 text-xs pl-2 border-l border-slate-800">
-                      {kot.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between">
-                          <span>{item.quantity}x {item.name}</span>
-                          {item.customizations.length > 0 && (
-                            <span className="text-[9px] text-slate-500">({item.customizations.join(', ')})</span>
+                          {/* Active Kitchen Tickets for this Table */}
+                          {tableTickets.length > 0 && (
+                            <div className="space-y-2 border-t border-slate-800/80 pt-3">
+                              <p className="text-[8px] text-slate-400 uppercase font-black tracking-wider flex items-center gap-1">
+                                <ShoppingCart className="w-3 h-3 text-purple-400" /> Active Tickets ({tableTickets.length})
+                              </p>
+                              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-none hide-scrollbar">
+                                {tableTickets.map(kot => (
+                                  <div key={kot.id} className="bg-slate-950/60 border border-slate-850/80 p-2.5 rounded-lg space-y-2">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[9px] font-black text-slate-300">{kot.kotNumber}</span>
+                                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${kot.status === 'READY'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse'
+                                        : kot.status === 'PENDING'
+                                          ? 'bg-rose-500/10 text-rose-450 border border-rose-500/20'
+                                          : kot.status === 'ACCEPTED'
+                                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                        }`}>
+                                        {kot.status}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-0.5 text-[10px] text-slate-300 pl-1.5 border-l border-slate-800">
+                                      {kot.items.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between">
+                                          <span>{item.quantity}x {item.name}</span>
+                                          {item.customizations.length > 0 && (
+                                            <span className="text-[8px] text-slate-500">({item.customizations.join(', ')})</span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {kot.status === 'READY' && (
+                                      <ButtonLoader
+                                        loading={updatingKotId === kot.id}
+                                        onClick={() => handleUpdateStatus(kot.id, 'SERVED')}
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-1 rounded text-[8px] transition-all flex items-center justify-center gap-1 shadow-sm"
+                                      >
+                                        Mark Served
+                                      </ButtonLoader>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
-                      ))}
-                    </div>
 
-                    {kot.status === 'READY' && (
-                      <ButtonLoader
-                        loading={updatingKotId === kot.id}
-                        onClick={() => handleUpdateStatus(kot.id, 'SERVED')}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-lg text-[10px] transition-all flex items-center justify-center gap-1 shadow-md shadow-emerald-500/10"
-                      >
-                        Mark Served
-                      </ButtonLoader>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                        <button
+                          onClick={() => handleOpenOrderModal(table)}
+                          className="w-full py-1.5 text-[9px] font-black bg-purple-650 hover:bg-purple-600 text-white rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-purple-500/10 mt-auto"
+                        >
+                          <ShoppingCart className="w-3 h-3" /> Place Order
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1362,7 +1367,7 @@ function WaiterDashboardComponent({
       {isOrderModalOpen && selectedOrderTable && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn flex flex-col max-h-[90vh]">
-            
+
             <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
               <div>
                 <h3 className="text-sm font-black text-white">
@@ -1370,7 +1375,7 @@ function WaiterDashboardComponent({
                 </h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">Select menu items and specify quantities.</p>
               </div>
-              <button 
+              <button
                 onClick={() => setIsOrderModalOpen(false)}
                 className="text-slate-500 hover:text-slate-300 font-bold text-xs"
               >
@@ -1407,9 +1412,8 @@ function WaiterDashboardComponent({
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold text-xs text-white">{item.name}</span>
-                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
-                              item.isVeg ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                            }`}>
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${item.isVeg ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              }`}>
                               {item.isVeg ? 'VEG' : 'NON-VEG'}
                             </span>
                           </div>

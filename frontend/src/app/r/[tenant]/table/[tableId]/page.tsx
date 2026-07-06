@@ -26,8 +26,6 @@ export default function CustomerOrderingPage(props: {
     setSearchQuery,
     activeCategory,
     setActiveCategory,
-    filterVeg,
-    setFilterVeg,
     isCartOpen,
     setCartOpen,
     isWaiterCallOpen,
@@ -43,6 +41,7 @@ export default function CustomerOrderingPage(props: {
   const [placedOrder, setPlacedOrder] = useState<{ id: string; status: string } | null>(null);
   const [waiterCallReason, setWaiterCallReason] = useState<WaiterRequestType>('service');
   const [callSuccess, setCallSuccess] = useState(false);
+  const [selectedFoodType, setSelectedFoodType] = useState<string | null>(null);
 
   // Start with empty arrays — populated only from the live API
   const [categories, setCategories] = useState<Category[]>([]);
@@ -119,6 +118,7 @@ export default function CustomerOrderingPage(props: {
                 description: item.description,
                 price: Number(item.price),
                 isVeg: item.isVeg,
+                foodType: item.foodType,
                 isAvailable: item.isAvailable,
                 imageUrl: item.imageUrl || undefined,
                 categoryId: item.categoryId,
@@ -199,11 +199,19 @@ export default function CustomerOrderingPage(props: {
   const filteredMenu = useMemo(() => {
     let items = menuItems;
 
+    // Filter by tenant allowedFoodTypes
+    if (tenant?.config?.allowedFoodTypes) {
+      items = items.filter(item => tenant.config.allowedFoodTypes.includes(item.foodType));
+    }
+
+    // Apply selectedFoodType filtering
+    if (selectedFoodType !== null) {
+      items = items.filter(item => item.foodType === selectedFoodType);
+    }
+
     // Apply Veg-Only Tenant configuration override
     if (tenant?.config.isVegOnly) {
       items = items.filter(item => item.isVeg);
-    } else if (filterVeg !== null) {
-      items = items.filter(item => item.isVeg === filterVeg);
     }
 
     if (searchQuery.trim() !== '') {
@@ -214,7 +222,7 @@ export default function CustomerOrderingPage(props: {
     }
 
     return items;
-  }, [filterVeg, searchQuery, tenant, menuItems]);
+  }, [selectedFoodType, searchQuery, tenant, menuItems]);
 
   // Totals calculations
   const totals = useMemo(() => {
@@ -534,38 +542,53 @@ export default function CustomerOrderingPage(props: {
             )}
           </div>
 
-          {!tenant.config.isVegOnly && (
-            <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-lg p-0.5">
+          {tenant.config.allowedFoodTypes && tenant.config.allowedFoodTypes.length > 1 && (
+            <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 rounded-lg p-0.5 gap-0.5 overflow-x-auto max-w-[280px] sm:max-w-md scrollbar-none hide-scrollbar">
               <button
-                onClick={() => setFilterVeg(null)}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                  filterVeg === null
+                onClick={() => setSelectedFoodType(null)}
+                className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all duration-200 whitespace-nowrap ${
+                  selectedFoodType === null
                     ? 'bg-white dark:bg-slate-800 text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 All
               </button>
-              <button
-                onClick={() => setFilterVeg(true)}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                  filterVeg === true
-                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                    : 'text-muted-foreground hover:text-emerald-500'
-                }`}
-              >
-                <span className="veg-stamp scale-75"></span>
-              </button>
-              <button
-                onClick={() => setFilterVeg(false)}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
-                  filterVeg === false
-                    ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-sm'
-                    : 'text-muted-foreground hover:text-rose-500'
-                }`}
-              >
-                <span className="nonveg-stamp scale-75"></span>
-              </button>
+              {tenant.config.allowedFoodTypes.map((type) => {
+                const isSelected = selectedFoodType === type;
+                let stampClass = '';
+                let label = '';
+                let textClass = 'text-muted-foreground hover:text-foreground';
+
+                if (type === 'VEG' || type === 'VEGAN' || type === 'JAIN') {
+                  stampClass = 'veg-stamp scale-75';
+                  if (isSelected) {
+                    textClass = 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm';
+                  }
+                } else {
+                  stampClass = 'nonveg-stamp scale-75';
+                  if (isSelected) {
+                    textClass = 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-sm';
+                  }
+                }
+
+                if (type === 'VEG') label = 'Veg';
+                else if (type === 'NON_VEG') label = 'Non-Veg';
+                else if (type === 'EGG') label = 'Egg';
+                else if (type === 'VEGAN') label = 'Vegan';
+                else if (type === 'JAIN') label = 'Jain';
+
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedFoodType(type)}
+                    className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-md transition-all duration-200 whitespace-nowrap ${textClass}`}
+                  >
+                    <span className={stampClass}></span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

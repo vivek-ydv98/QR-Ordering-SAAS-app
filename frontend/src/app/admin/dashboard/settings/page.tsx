@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Save, 
-  Percent, 
-  Settings, 
-  Check, 
+import {
+  Save,
+  Percent,
+  Settings,
+  Check,
   AlertCircle,
   ShieldCheck,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Utensils
 } from 'lucide-react';
 import { useDashboard } from '../DashboardContext';
 import api from '../../../../lib/api';
@@ -33,6 +34,8 @@ export default function SettingsPage() {
 
   const [serviceChargeEnabled, setServiceChargeEnabled] = useState(false);
   const [serviceChargeRate, setServiceChargeRate] = useState('5.0');
+
+  const [allowedFoodTypes, setAllowedFoodTypes] = useState<string[]>(['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN']);
 
   useEffect(() => {
     fetchSettings();
@@ -68,6 +71,7 @@ export default function SettingsPage() {
         setServiceChargeRate('5.0');
       }
 
+      setAllowedFoodTypes(data.allowedFoodTypes ?? ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN']);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching settings:', err);
@@ -99,12 +103,18 @@ export default function SettingsPage() {
       return;
     }
 
+    if (allowedFoodTypes.length === 0) {
+      setError('At least one food type must be selected.');
+      return;
+    }
+
     try {
       setSubmitLoading(true);
       await api.patch('/restaurants/settings/me', {
         cgstRate: cgstVal,
         sgstRate: sgstVal,
         serviceChargeRate: scVal,
+        allowedFoodTypes,
       });
 
       setSuccess('Settings updated successfully!');
@@ -272,6 +282,51 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4 pt-4">
+            <Utensils className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-sm font-black text-white">Food Type Configuration</h3>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              { id: 'VEG', label: 'Vegetarian', color: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-450', badgeColor: 'bg-emerald-500', desc: 'Dishes containing only plant and dairy products.' },
+              { id: 'NON_VEG', label: 'Non-Vegetarian', color: 'border-rose-500/30 bg-rose-500/5 text-rose-455', badgeColor: 'bg-rose-500', desc: 'Dishes containing meat, poultry, seafood, etc.' },
+              { id: 'EGG', label: 'Eggitarian', color: 'border-amber-500/30 bg-amber-500/5 text-amber-450', badgeColor: 'bg-amber-500', desc: 'Dishes containing eggs but no meat.' },
+              { id: 'VEGAN', label: 'Vegan', color: 'border-teal-500/30 bg-teal-500/5 text-teal-450', badgeColor: 'bg-teal-500', desc: 'Purely plant-based dishes, no dairy or honey.' },
+              { id: 'JAIN', label: 'Jain', color: 'border-orange-500/30 bg-orange-500/5 text-orange-450', badgeColor: 'bg-orange-500', desc: 'Dishes prepared without root vegetables.' }
+            ].map((ft) => {
+              const isSelected = allowedFoodTypes.includes(ft.id);
+              return (
+                <button
+                  key={ft.id}
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setAllowedFoodTypes(allowedFoodTypes.filter(id => id !== ft.id));
+                    } else {
+                      setAllowedFoodTypes([...allowedFoodTypes, ft.id]);
+                    }
+                  }}
+                  className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all duration-200 ${
+                    isSelected
+                      ? `${ft.color} shadow-lg shadow-indigo-500/5`
+                      : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                  }`}
+                >
+                  <div className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center transition-all ${
+                    isSelected ? `${ft.badgeColor} border-transparent text-white` : 'border-slate-700 text-transparent'
+                  }`}>
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">{ft.label}</span>
+                    <span className="text-[10px] text-slate-500 block mt-1 leading-normal">{ft.desc}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <div className="border-t border-slate-800 pt-4 flex justify-between items-center">

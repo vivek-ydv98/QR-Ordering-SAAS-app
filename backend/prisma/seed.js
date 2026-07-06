@@ -76,6 +76,7 @@ async function main() {
       cgstRate: 2.5,
       sgstRate: 2.5,
       serviceChargeRate: 5.0,
+      allowedFoodTypes: ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'],
     },
   });
   console.log('Created Restaurant Settings');
@@ -229,7 +230,7 @@ async function main() {
 
   // 11. Create Sample/Fake Orders for Dashboard
   console.log('Creating sample orders...');
-  
+
   // Update Table T1 status to OCCUPIED as well so Table Occupancy becomes 2 / 3
   await prisma.table.update({
     where: { id: t1.id },

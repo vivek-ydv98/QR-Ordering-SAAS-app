@@ -68,6 +68,7 @@ export default function MenuPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [allowedFoodTypes, setAllowedFoodTypes] = useState<string[]>(['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN']);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,14 +125,18 @@ export default function MenuPage() {
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [catRes, itemsRes] = await Promise.all([
+      const [catRes, itemsRes, settingsRes] = await Promise.all([
         api.get('/categories'),
-        api.get('/menu-items')
+        api.get('/menu-items'),
+        api.get('/restaurants/settings/me')
       ]);
       setCategories(catRes.data);
       setItems(itemsRes.data);
       if (itemsRes.data.length > 0) {
         setSelectedItem(itemsRes.data[0]);
+      }
+      if (settingsRes.data?.allowedFoodTypes) {
+        setAllowedFoodTypes(settingsRes.data.allowedFoodTypes);
       }
     } catch (err: any) {
       console.error('Failed to load menu data:', err);
@@ -153,14 +158,15 @@ export default function MenuPage() {
   };
 
   const handleOpenCreate = () => {
+    const defaultFT = allowedFoodTypes.includes('VEG') ? 'VEG' : (allowedFoodTypes[0] || 'VEG');
     setItemFormData({
       name: '',
       description: '',
       price: '',
       discountPrice: '',
       categoryId: categories[0]?.id || '',
-      isVeg: true,
-      foodType: 'VEG',
+      isVeg: ['VEG', 'VEGAN', 'JAIN'].includes(defaultFT),
+      foodType: defaultFT,
       prepTime: 15,
       isAvailable: true,
       isFeatured: false,
@@ -670,11 +676,11 @@ export default function MenuPage() {
                               })}
                               className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-2.5 text-xs text-white outline-none focus:border-emerald-500 transition-all cursor-pointer appearance-none [&>option]:bg-slate-950 [&>option]:text-white"
                             >
-                              <option value="VEG" className="bg-slate-950 text-white">VEG</option>
-                              <option value="NON_VEG" className="bg-slate-950 text-white">NON-VEG</option>
-                              <option value="EGG" className="bg-slate-950 text-white">EGG</option>
-                              <option value="VEGAN" className="bg-slate-950 text-white">VEGAN</option>
-                              <option value="JAIN" className="bg-slate-950 text-white">JAIN</option>
+                              {Array.from(new Set([...allowedFoodTypes, selectedItem.foodType])).map((type) => (
+                                <option key={type} value={type} className="bg-slate-950 text-white">
+                                  {type === 'NON_VEG' ? 'NON-VEG' : type}
+                                </option>
+                              ))}
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
                               <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -995,11 +1001,11 @@ export default function MenuPage() {
                       })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-8 py-2.5 text-xs text-white outline-none focus:border-emerald-500 transition-all cursor-pointer appearance-none [&>option]:bg-slate-950 [&>option]:text-white"
                     >
-                      <option value="VEG" className="bg-slate-950 text-white">VEG</option>
-                      <option value="NON_VEG" className="bg-slate-950 text-white">NON-VEG</option>
-                      <option value="EGG" className="bg-slate-950 text-white">EGG</option>
-                      <option value="VEGAN" className="bg-slate-950 text-white">VEGAN</option>
-                      <option value="JAIN" className="bg-slate-950 text-white">JAIN</option>
+                      {allowedFoodTypes.map((type) => (
+                        <option key={type} value={type} className="bg-slate-950 text-white">
+                          {type === 'NON_VEG' ? 'NON-VEG' : type}
+                        </option>
+                      ))}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
                       <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">

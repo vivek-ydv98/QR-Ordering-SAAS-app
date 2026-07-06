@@ -283,6 +283,7 @@ model RestaurantSetting {
   qrFgColor         String   @default("#000000") @map("qr_fg_color")
   qrBgColor         String   @default("#ffffff") @map("qr_bg_color")
   qrLogoUrl         String?  @map("qr_logo_url")
+  allowedFoodTypes  FoodType[] @default([VEG, NON_VEG, EGG, VEGAN, JAIN]) @map("allowed_food_types")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

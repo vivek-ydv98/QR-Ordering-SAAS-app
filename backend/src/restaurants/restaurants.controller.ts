@@ -199,7 +199,12 @@ export class RestaurantsController {
   @Roles('RESTAURANT_ADMIN', 'MANAGER')
   updateSettings(
     @Req() req: Request,
-    @Body() body: { cgstRate?: number | null; sgstRate?: number | null; serviceChargeRate?: number | null },
+    @Body() body: { 
+      cgstRate?: number | null; 
+      sgstRate?: number | null; 
+      serviceChargeRate?: number | null;
+      allowedFoodTypes?: any[];
+    },
   ) {
     const user = req['user'] as any;
     return this.restaurantsService.updateRestaurantSettings(user.restaurantId, body);
