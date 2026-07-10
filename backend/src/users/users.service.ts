@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { NotFoundError, ValidationError } from '../common/errors/app-error';
@@ -138,7 +139,7 @@ export class UsersService {
       throw new NotFoundError(`User with ID "${userId}" not found`);
     }
 
-    const tempPassword = explicitPassword || 'Password123';
+    const tempPassword = explicitPassword || randomBytes(12).toString('base64url');
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 
