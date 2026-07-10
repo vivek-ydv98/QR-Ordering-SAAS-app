@@ -14,7 +14,10 @@ import { RestaurantsService } from '../restaurants/restaurants.service';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+      : ['http://localhost:3000'],
+    credentials: true,
   },
   namespace: '/',
 })

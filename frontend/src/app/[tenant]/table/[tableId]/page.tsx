@@ -62,7 +62,7 @@ export default function CustomerOrderingPage(props: {
 
     const fetchMenu = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
         const res = await fetch(`${apiUrl}/restaurants/${tenant.id}/menu`);
         if (!res.ok) {
           throw new Error(`Menu API returned HTTP ${res.status}`);
@@ -155,7 +155,7 @@ export default function CustomerOrderingPage(props: {
 
     const fetchTableStatus = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
         const res = await fetch(`${apiUrl}/restaurants/tables/by-id/${tableId}?restaurant=${tenantSlug}`);
         if (res.ok && active) {
           const data = await res.json();
@@ -339,7 +339,7 @@ export default function CustomerOrderingPage(props: {
     if (cart.length === 0) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
       
       const itemsPayload = cart.map(item => ({
         menuItemId: item.menuItemId,

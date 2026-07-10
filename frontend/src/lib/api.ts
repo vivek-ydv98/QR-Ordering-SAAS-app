@@ -2,7 +2,7 @@ import axios from 'axios';
 import { extractTenantSlug, ROUTES } from './routes';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

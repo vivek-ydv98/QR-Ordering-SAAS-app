@@ -26,7 +26,7 @@ export const TenantProvider: React.FC<{
 
     const loadTenant = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
         const res = await fetch(`${apiUrl}/restaurants/${tenantSlug}`);
 
         if (!res.ok) {
