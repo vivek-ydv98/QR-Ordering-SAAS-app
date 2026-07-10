@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 
@@ -54,7 +53,7 @@ export class StaffService {
     }
 
     // 2. Generate/hash password
-    const tempPassword = password || randomBytes(12).toString('base64url');
+    const tempPassword = password || 'Password123';
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 
@@ -242,7 +241,7 @@ export class StaffService {
       throw new NotFoundException(`Staff record with ID "${id}" not found`);
     }
 
-    const tempPassword = explicitPassword || randomBytes(12).toString('base64url');
+    const tempPassword = explicitPassword || 'Password123';
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 
