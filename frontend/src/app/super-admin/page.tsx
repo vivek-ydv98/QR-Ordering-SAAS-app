@@ -10,6 +10,7 @@ import {
   QrCode, Printer, Download, Upload, RefreshCw as RotateCcw, ShoppingBag
 } from 'lucide-react';
 import api from '../../lib/api';
+import { ROUTES } from '../../lib/routes';
 import { useToastStore } from '../../store/useToastStore';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -549,13 +550,13 @@ export default function SuperAdminPanel() {
       const profileStr = localStorage.getItem('user_profile');
 
       if (!token || !profileStr) {
-        router.push('/login');
+        router.push(ROUTES.AUTH.LOGIN);
         return;
       }
 
       const profile = JSON.parse(profileStr);
       if (profile.role !== 'SUPER_ADMIN') {
-        router.push('/login');
+        router.push(ROUTES.AUTH.LOGIN);
         return;
       }
 
@@ -615,7 +616,7 @@ export default function SuperAdminPanel() {
     localStorage.removeItem('staff_auth_token');
     localStorage.removeItem('user_profile');
     localStorage.removeItem('tenant_id');
-    router.push('/login');
+    router.push(ROUTES.AUTH.LOGIN);
   };
 
   const handleToggleActive = async (restaurantId: string, currentStatus: boolean) => {

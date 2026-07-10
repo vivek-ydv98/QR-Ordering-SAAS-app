@@ -1,0 +1,42 @@
+# =========================================================
+# Frontend .dockerignore
+# =========================================================
+
+# Secrets & local config
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+
+# Large directories that are rebuilt inside the container
+node_modules/
+.next/
+
+# Tests
+tests/
+vitest.config.ts
+playwright.config.ts
+
+# Logs
+*.log
+logs/
+
+# Build metadata
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# IDE / OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Local docs
+*.md

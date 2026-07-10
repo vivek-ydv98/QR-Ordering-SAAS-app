@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { CreateStaffDto } from './dto/create-staff.dto';
@@ -35,8 +35,13 @@ export class StaffService {
     });
   }
 
-  async create(createStaffDto: CreateStaffDto) {
+  async create(createStaffDto: CreateStaffDto, currentUserRole?: string) {
     const { email, fullName, role, password, isAvailable } = createStaffDto;
+
+    // 0. Prevent MANAGER from creating another MANAGER
+    if (currentUserRole === 'MANAGER' && role === 'MANAGER') {
+      throw new ForbiddenException('Managers cannot create other manager accounts');
+    }
 
     // 1. Verify email is unique globally (User is not tenant-scoped, so query rawClient)
     const existingUser = await this.prisma.rawClient.user.findUnique({

@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -27,6 +28,7 @@ model Restaurant {
   name               String
   slug               String    @unique
   logoUrl            String?   @map("logo")
+  logoPublicId       String?   @map("logo_public_id")
   ownerName          String?   @map("owner_name")
   ownerEmail         String?   @map("owner_email")
   phone              String?
@@ -137,6 +139,7 @@ model MenuCategory {
   name         String
   description  String?
   imageUrl     String?   @map("image_url")
+  imagePublicId String?  @map("image_public_id")
   sortOrder    Int       @default(0) @map("sort_order")
   isAvailable  Boolean   @default(true) @map("is_available")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -165,8 +168,10 @@ model MenuItem {
   isAvailable   Boolean       @default(true) @map("is_available")
   isFeatured    Boolean       @default(false) @map("is_featured")
   isBestseller  Boolean       @default(false) @map("is_bestseller")
-  imageUrl      String?       @map("image_url")
-  createdAt     DateTime      @default(now()) @map("created_at")
+  imageUrl          String?       @map("image_url")
+  imagePublicId     String?       @map("image_public_id")
+  externalImageUrl  String?       @map("external_image_url")
+  createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
   deletedAt     DateTime?     @map("deleted_at")
 
@@ -283,6 +288,7 @@ model RestaurantSetting {
   qrFgColor         String   @default("#000000") @map("qr_fg_color")
   qrBgColor         String   @default("#ffffff") @map("qr_bg_color")
   qrLogoUrl         String?  @map("qr_logo_url")
+  qrLogoPublicId    String?  @map("qr_logo_public_id")
   allowedFoodTypes  FoodType[] @default([VEG, NON_VEG, EGG, VEGAN, JAIN]) @map("allowed_food_types")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")

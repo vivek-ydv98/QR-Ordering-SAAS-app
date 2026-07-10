@@ -19,6 +19,7 @@ export class TenantMiddleware implements NestMiddleware {
     const isSocketIoRoute = req.originalUrl.startsWith('/socket.io');
     const isAuditLogsRoute = req.originalUrl.startsWith('/v1/audit-logs');
     const isUsersRoute = req.originalUrl.startsWith('/v1/users');
+    const isHealthRoute = req.originalUrl.startsWith('/v1/health');
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -38,7 +39,7 @@ export class TenantMiddleware implements NestMiddleware {
       return restaurant.id;
     };
 
-    if (isPublicAuthRoute) {
+    if (isPublicAuthRoute || isHealthRoute) {
       return next();
     }
 

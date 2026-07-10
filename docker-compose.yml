@@ -1,0 +1,134 @@
+# =============================================================================
+# QR Restaurant Ordering SaaS — Docker Compose (Production)
+#
+# Services:
+#   backend   — NestJS 10 + Prisma ORM (port 3001)
+#   frontend  — Next.js 15 standalone server (port 3000)
+#
+# External dependency:
+#   PostgreSQL — hosted on Supabase / AWS RDS / any managed DB.
+#   Set DATABASE_URL and DIRECT_URL in .env (see .env.docker.example).
+#
+# Usage:
+#   cp .env.docker.example .env.docker
+#   # fill in the values, then:
+#   docker compose --env-file .env.docker up -d --build
+# =============================================================================
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Shared defaults to keep service blocks DRY
+# ---------------------------------------------------------------------------
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  qr_internal:
+    driver: bridge
+    name: qr_internal
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  # Persistent cache for Next.js builds between container restarts
+  nextjs_cache:
+    name: qr_nextjs_cache
+
+# =============================================================================
+# Services
+# =============================================================================
+services:
+
+  # ---------------------------------------------------------------------------
+  # Backend — NestJS API
+  # ---------------------------------------------------------------------------
+  backend:
+    <<: *default-restart
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    image: qr-ordering/backend:latest
+    container_name: qr_backend
+    networks:
+      - qr_internal
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # Database
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL:-${DATABASE_URL}}
+      # Auth
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      # CORS — must include the public frontend URL
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_URL: ${CLOUDINARY_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/v1/health 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    logging: *default-logging
+    # Read-only root filesystem for extra security (logs/tmp are tmpfs)
+    read_only: false   # set true only after verifying all write paths are tmpfs
+    tmpfs:
+      - /tmp
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Next.js standalone
+  # ---------------------------------------------------------------------------
+  frontend:
+    <<: *default-restart
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        # These NEXT_PUBLIC_ vars are baked into the JS bundle at build time.
+        # For a container-local setup use the service name; for production
+        # replace with your public domain (e.g. https://api.yoursite.com/v1).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/v1}
+        NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3001}
+    image: qr-ordering/frontend:latest
+    container_name: qr_frontend
+    networks:
+      - qr_internal
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      # Persist Next.js build cache so subsequent builds are faster
+      - nextjs_cache:/app/.next/cache
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ > /dev/null 2>&1 && exit 0 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    logging: *default-logging

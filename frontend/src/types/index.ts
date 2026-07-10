@@ -56,6 +56,8 @@ export interface MenuItem {
   foodType: 'VEG' | 'NON_VEG' | 'EGG' | 'VEGAN' | 'JAIN';
   isAvailable: boolean;
   imageUrl?: string;
+  imagePublicId?: string;
+  externalImageUrl?: string;
   categoryId: string;
   customizationGroups: CustomizationGroup[];
 }

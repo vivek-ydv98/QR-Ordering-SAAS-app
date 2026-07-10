@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { CategoriesController } from './controllers/categories.controller';
 import { MenuItemsController } from './controllers/menu-items.controller';
 import { VariantsController } from './controllers/variants.controller';
@@ -10,6 +11,7 @@ import { VariantsService } from './services/variants.service';
 import { AddonsService } from './services/addons.service';
 
 @Module({
+  imports: [CloudinaryModule],
   controllers: [
     CategoriesController,
     MenuItemsController,

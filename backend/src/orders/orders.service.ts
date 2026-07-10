@@ -320,19 +320,16 @@ export class OrdersService {
   }
 
   async getCompletedOrdersToday(restaurantId: string) {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
     return this.prisma.client.order.findMany({
       where: {
         restaurantId,
         status: 'completed',
         createdAt: {
-          gte: todayStart,
-          lte: todayEnd,
+          gte: sevenDaysAgo,
         },
       },
       include: {

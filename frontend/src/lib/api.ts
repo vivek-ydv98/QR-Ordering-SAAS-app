@@ -1,17 +1,16 @@
 import axios from 'axios';
+import { extractTenantSlug, ROUTES } from './routes';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1',
-  timeout: 30000, // Increased timeout to 30s to prevent local development compile timeouts
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to attach dynamic headers
 api.interceptors.request.use(
   (config) => {
-    // 1. Resolve tenant context from local user profile or active URL pathnames if running in browser
     if (typeof window !== 'undefined') {
       let tenantId = '';
 
@@ -27,17 +26,17 @@ api.interceptors.request.use(
         }
       }
 
-      const paths = window.location.pathname.split('/');
-      const rIndex = paths.indexOf('r');
-      if (rIndex !== -1 && paths[rIndex + 1]) {
-        tenantId = paths[rIndex + 1];
+      if (!tenantId) {
+        const slug = extractTenantSlug(window.location.pathname);
+        if (slug) {
+          tenantId = slug;
+        }
       }
 
       if (tenantId) {
         config.headers['X-Tenant-ID'] = tenantId;
       }
 
-      // 2. Fetch staff authorization token if stored locally
       const token = localStorage.getItem('staff_auth_token');
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
@@ -72,7 +71,7 @@ api.interceptors.response.use(
           useToastStore.getState().showError('Your session has expired. Please login again.');
           // Use setTimeout to allow toast to render before redirecting
           setTimeout(() => {
-            window.location.href = '/login';
+            window.location.href = ROUTES.AUTH.LOGIN;
           }, 1000);
         }
       } else if (status === 503) {

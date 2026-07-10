@@ -48,4 +48,8 @@ export class CreateMenuItemDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  externalImageUrl?: string;
 }

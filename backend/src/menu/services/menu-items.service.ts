@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { CreateMenuItemDto } from '../dtos/create-menu-item.dto';
 import { UpdateMenuItemDto } from '../dtos/update-menu-item.dto';
 
 @Injectable()
 export class MenuItemsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) { }
 
   async create(createMenuItemDto: CreateMenuItemDto) {
     // Check if category exists
@@ -78,8 +82,13 @@ export class MenuItemsService {
     return item;
   }
 
-  async update(id: string, updateMenuItemDto: UpdateMenuItemDto) {
-    await this.findOne(id);
+  async update(id: string, updateMenuItemDto: UpdateMenuItemDto & { imagePublicId?: string }) {
+    const existing = await this.findOne(id);
+
+    // If externalImageUrl is explicitly set to null, clear it
+    if ('externalImageUrl' in updateMenuItemDto && updateMenuItemDto.externalImageUrl === null) {
+      (updateMenuItemDto as any).externalImageUrl = null;
+    }
 
     if (updateMenuItemDto.foodType) {
       const settings = await this.prisma.client.restaurantSetting.findFirst();
@@ -89,9 +98,14 @@ export class MenuItemsService {
       }
     }
 
+    // Delete old Cloudinary image if being replaced
+    if (updateMenuItemDto.imagePublicId && existing.imagePublicId && updateMenuItemDto.imagePublicId !== existing.imagePublicId) {
+      await this.cloudinaryService.deleteImage(existing.imagePublicId);
+    }
+
     return this.prisma.client.menuItem.update({
       where: { id },
-      data: updateMenuItemDto,
+      data: updateMenuItemDto as any,
       include: {
         variants: true,
         addons: true,
@@ -100,11 +114,16 @@ export class MenuItemsService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     try {
-      return await this.prisma.client.menuItem.delete({
+      const deleted = await this.prisma.client.menuItem.delete({
         where: { id },
       });
+      // Delete Cloudinary image if it exists
+      if (existing.imagePublicId) {
+        await this.cloudinaryService.deleteImage(existing.imagePublicId);
+      }
+      return deleted;
     } catch (error: any) {
       if (error.code === 'P2003') {
         throw new ConflictException(
@@ -113,5 +132,29 @@ export class MenuItemsService {
       }
       throw error;
     }
+  }
+
+  async removeImage(id: string) {
+    const existing = await this.prisma.client.menuItem.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Menu item with ID "${id}" not found.`);
+    }
+    if (existing.imagePublicId) {
+      try {
+        await this.cloudinaryService.deleteImage(existing.imagePublicId);
+      } catch (error) {
+        console.error(`[MenuItemsService] Failed to delete Cloudinary image ${existing.imagePublicId}:`, error);
+      }
+    }
+    return this.prisma.client.menuItem.update({
+      where: { id },
+      data: {
+        imageUrl: null,
+        imagePublicId: null,
+      },
+      include: { variants: true, addons: true },
+    });
   }
 }

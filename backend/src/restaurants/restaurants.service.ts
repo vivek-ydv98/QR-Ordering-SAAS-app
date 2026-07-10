@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TableStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '../common/errors/app-error';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class RestaurantsService {
   private activeWaiterCalls = new Map<string, any[]>();
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) { }
 
   /**
    * Fetch all onboarded restaurants for Super Admin
@@ -150,6 +154,7 @@ export class RestaurantsService {
     subscriptionStatus?: string;
     isActive?: boolean;
     maxTables?: number;
+    logoPublicId?: string | null;
     qrFgColor?: string;
     qrBgColor?: string;
     qrLogoUrl?: string;
@@ -160,6 +165,11 @@ export class RestaurantsService {
 
     if (!restaurant) {
       throw new NotFoundError(`Restaurant with ID "${id}" not found`);
+    }
+
+    // Delete old Cloudinary logo if being replaced
+    if (data.logoPublicId && restaurant.logoPublicId && data.logoPublicId !== restaurant.logoPublicId) {
+      await this.cloudinaryService.deleteImage(restaurant.logoPublicId);
     }
 
     const { qrFgColor, qrBgColor, qrLogoUrl, ...rest } = data;
@@ -276,79 +286,6 @@ export class RestaurantsService {
       where: { restaurantId },
       orderBy: { name: 'asc' },
     });
-  }
-
-  // ─── CATEGORY MANAGEMENT ─────────────────────────────────────────────────────
-
-  async createCategory(restaurantId: string, name: string, sortOrder = 0) {
-    return this.prisma.client.menuCategory.create({
-      data: { restaurantId, name, sortOrder, isAvailable: true },
-    });
-  }
-
-  async updateCategory(
-    categoryId: string,
-    data: { name?: string; sortOrder?: number; isAvailable?: boolean },
-  ) {
-    return this.prisma.client.menuCategory.update({
-      where: { id: categoryId },
-      data,
-    });
-  }
-
-  async deleteCategory(categoryId: string) {
-    // Cascade to menu items first (in case DB doesn't cascade)
-    await this.prisma.client.menuItem.deleteMany({ where: { categoryId } });
-    return this.prisma.client.menuCategory.delete({ where: { id: categoryId } });
-  }
-
-  // ─── MENU ITEM MANAGEMENT ─────────────────────────────────────────────────────
-
-  async createMenuItem(
-    restaurantId: string,
-    data: {
-      categoryId: string;
-      name: string;
-      description: string;
-      price: number;
-      isVeg?: boolean;
-      imageUrl?: string;
-    },
-  ) {
-    return this.prisma.client.menuItem.create({
-      data: {
-        restaurantId,
-        categoryId: data.categoryId,
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        isVeg: data.isVeg ?? true,
-        isAvailable: true,
-        imageUrl: data.imageUrl ?? null,
-      },
-    });
-  }
-
-  async updateMenuItem(
-    itemId: string,
-    data: {
-      categoryId?: string;
-      name?: string;
-      description?: string;
-      price?: number;
-      isVeg?: boolean;
-      isAvailable?: boolean;
-      imageUrl?: string;
-    },
-  ) {
-    return this.prisma.client.menuItem.update({
-      where: { id: itemId },
-      data,
-    });
-  }
-
-  async deleteMenuItem(itemId: string) {
-    return this.prisma.client.menuItem.delete({ where: { id: itemId } });
   }
 
   // ─── TABLE MANAGEMENT ────────────────────────────────────────────────────────
@@ -500,13 +437,27 @@ export class RestaurantsService {
   }
 
   async getRestaurantSettings(restaurantId: string) {
+    const restaurant = await this.prisma.client.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, name: true, logoUrl: true, logoPublicId: true },
+    });
+    if (!restaurant) {
+      throw new NotFoundError(`Restaurant with ID "${restaurantId}" not found.`);
+    }
+
     const settings = await this.prisma.client.restaurantSetting.findUnique({
       where: { restaurantId },
     });
     if (!settings) {
       throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
     }
-    return settings;
+
+    return {
+      ...settings,
+      restaurantName: restaurant.name,
+      logoUrl: restaurant.logoUrl,
+      logoPublicId: restaurant.logoPublicId,
+    };
   }
 
   async updateRestaurantSettings(
@@ -544,6 +495,29 @@ export class RestaurantsService {
         serviceChargeRate: data.serviceChargeRate === null || data.serviceChargeRate === undefined ? null : data.serviceChargeRate,
         ...(data.allowedFoodTypes !== undefined && { allowedFoodTypes: data.allowedFoodTypes }),
       },
+    });
+  }
+
+  async updateRestaurantSettingsQrLogo(
+    restaurantId: string,
+    qrLogoUrl: string,
+    qrLogoPublicId: string,
+  ) {
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    if (!settings) {
+      throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
+    }
+
+    // Delete old QR logo from Cloudinary if it exists
+    if (settings.qrLogoPublicId) {
+      await this.cloudinaryService.deleteImage(settings.qrLogoPublicId);
+    }
+
+    return this.prisma.client.restaurantSetting.update({
+      where: { restaurantId },
+      data: { qrLogoUrl, qrLogoPublicId },
     });
   }
 }

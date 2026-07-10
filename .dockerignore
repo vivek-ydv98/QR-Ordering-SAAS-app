@@ -1,0 +1,46 @@
+# =========================================================
+# Root-level .dockerignore
+# Applies to docker compose build contexts at the root.
+# =========================================================
+
+# Node modules across the repo
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Build outputs
+dist/
+backend/dist/
+.next/
+frontend/.next/
+
+# Environment secrets
+.env
+.env.*
+.env.docker
+!.env.docker.example
+backend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Logs
+*.log
+logs/
+backend/backend.log
+frontend/frontend.log
+
+# Tests
+backend/tests/
+frontend/tests/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
