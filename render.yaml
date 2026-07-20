@@ -12,7 +12,7 @@ services:
     env: docker
     dockerContext: backend
     dockerfilePath: Dockerfile
-    plan: starter
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
