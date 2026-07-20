@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { ButtonLoader } from '../../components/LoadingComponents';
+import { ROUTES, getAdminDefaultRoute } from '../../lib/routes';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,13 +14,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  
-  // Loading & notification states
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Prepopulate email if remember me was checked in a previous session
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedEmail = localStorage.getItem('remembered_email');
@@ -32,32 +34,39 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    // Simple validation
-    if (!email || !password) {
-      setErrorMsg('Please fill in all fields');
-      setIsLoading(false);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setEmailError('Email address is required.');
       return;
     }
+    if (!isValidEmail(trimmedEmail)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+    setEmailError(null);
+
+    if (!password) {
+      setErrorMsg('Please enter your password.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await api.post('/auth/login', { email, password });
       const { accessToken, user } = response.data;
 
-      // Handle "Remember Me"
       if (rememberMe) {
         localStorage.setItem('remembered_email', email);
       } else {
         localStorage.removeItem('remembered_email');
       }
 
-      // Save token & user profile
       localStorage.setItem('staff_auth_token', accessToken);
       localStorage.setItem('user_profile', JSON.stringify(user));
-      // Save tenant header helper
       if (user.restaurantId) {
         localStorage.setItem('tenant_id', user.restaurantId);
       } else {
@@ -66,12 +75,11 @@ export default function LoginPage() {
 
       setSuccessMsg(`Welcome back, ${user.fullName}! Redirecting...`);
 
-      // Redirect based on role
       setTimeout(() => {
         if (user.role === 'SUPER_ADMIN') {
-          router.push('/super-admin');
+          router.push(ROUTES.SUPER_ADMIN.ROOT);
         } else {
-          router.push('/admin/dashboard');
+          router.push(getAdminDefaultRoute(user.role, user.slug));
         }
       }, 1500);
 
@@ -84,20 +92,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 font-sans relative overflow-hidden">
-      
-      {/* Background Glows */}
+
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* Main Container */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className="w-full max-w-md bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-8 rounded-2xl shadow-2xl relative z-10"
       >
-        
-        {/* Brand Logo / Name */}
+
         <div className="text-center mb-8">
           <motion.div
             initial={{ scale: 0.8 }}
@@ -115,7 +120,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Form Notifications */}
         <AnimatePresence mode="wait">
           {errorMsg && (
             <motion.div
@@ -142,10 +146,8 @@ export default function LoginPage() {
           )}
         </AnimatePresence>
 
-        {/* Credentials Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          
-          {/* Email field */}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
               Email Address
@@ -156,17 +158,24 @@ export default function LoginPage() {
               </span>
               <input
                 type="email"
-                required
                 disabled={isLoading}
                 placeholder="name@restaurant.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all disabled:opacity-50"
+                onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(null); }}
+                className={`w-full bg-slate-950/50 border rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 transition-all disabled:opacity-50 ${
+                  emailError
+                    ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/20'
+                    : 'border-slate-800 focus:border-primary/50 focus:ring-primary/20'
+                }`}
               />
+              {emailError && (
+                <p className="flex items-center gap-1 mt-1.5 text-[11px] text-red-400 font-semibold">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {emailError}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Password field */}
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-center">
               <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
@@ -198,7 +207,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Remember Me Toggle */}
           <div className="flex items-center justify-between mt-1 mb-2">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -212,7 +220,6 @@ export default function LoginPage() {
             </label>
           </div>
 
-          {/* Submit Action */}
           <ButtonLoader
             type="submit"
             loading={isLoading}

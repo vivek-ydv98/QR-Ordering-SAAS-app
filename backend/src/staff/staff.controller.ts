@@ -41,8 +41,9 @@ export class StaffController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('RESTAURANT_ADMIN', 'MANAGER')
-  async create(@Body() createStaffDto: CreateStaffDto) {
-    return this.staffService.create(createStaffDto);
+  async create(@Body() createStaffDto: CreateStaffDto, @Req() req: Request) {
+    const user = req.user as any;
+    return this.staffService.create(createStaffDto, user.role);
   }
 
   @Patch(':id')

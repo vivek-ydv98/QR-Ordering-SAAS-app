@@ -37,6 +37,7 @@ export class AuthService {
     }
 
     // 4. Verify restaurant is active (if staff/admin user)
+    let restaurantSlug: string | null = null;
     if (user.restaurantId) {
       const restaurant = await this.prisma.client.restaurant.findUnique({
         where: { id: user.restaurantId },
@@ -51,6 +52,8 @@ export class AuthService {
           'Your restaurant account is suspended. Please contact the platform support.'
         );
       }
+
+      restaurantSlug = restaurant.slug;
     }
 
     // 5. Update last login time
@@ -99,6 +102,7 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         restaurantId: user.restaurantId,
+        slug: restaurantSlug,
       },
     };
   }

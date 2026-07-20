@@ -10,6 +10,7 @@ import {
   QrCode, Printer, Download, Upload, RefreshCw as RotateCcw, ShoppingBag
 } from 'lucide-react';
 import api from '../../lib/api';
+import { ROUTES } from '../../lib/routes';
 import { useToastStore } from '../../store/useToastStore';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -480,6 +481,7 @@ export default function SuperAdminPanel() {
 
   const [onboardError, setOnboardError] = useState<string | null>(null);
   const [onboardLoading, setOnboardLoading] = useState(false);
+  const [onboardEmailErrors, setOnboardEmailErrors] = useState<{ ownerEmail?: string; adminEmail?: string }>({});
 
   // Edit Form fields
   const [isEditingOpen, setIsEditingOpen] = useState(false);
@@ -500,6 +502,7 @@ export default function SuperAdminPanel() {
   });
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [editOwnerEmailError, setEditOwnerEmailError] = useState<string | null>(null);
 
   // Edit User modal state
   const [isEditingUserOpen, setIsEditingUserOpen] = useState(false);
@@ -510,6 +513,10 @@ export default function SuperAdminPanel() {
   });
   const [editUserError, setEditUserError] = useState<string | null>(null);
   const [editUserLoading, setEditUserLoading] = useState(false);
+  const [editUserEmailError, setEditUserEmailError] = useState<string | null>(null);
+
+  // Email validation helper
+  const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 
   // Copy state
   const [copiedText, setCopiedText] = useState(false);
@@ -543,13 +550,13 @@ export default function SuperAdminPanel() {
       const profileStr = localStorage.getItem('user_profile');
 
       if (!token || !profileStr) {
-        router.push('/login');
+        router.push(ROUTES.AUTH.LOGIN);
         return;
       }
 
       const profile = JSON.parse(profileStr);
       if (profile.role !== 'SUPER_ADMIN') {
-        router.push('/login');
+        router.push(ROUTES.AUTH.LOGIN);
         return;
       }
 
@@ -609,7 +616,7 @@ export default function SuperAdminPanel() {
     localStorage.removeItem('staff_auth_token');
     localStorage.removeItem('user_profile');
     localStorage.removeItem('tenant_id');
-    router.push('/login');
+    router.push(ROUTES.AUTH.LOGIN);
   };
 
   const handleToggleActive = async (restaurantId: string, currentStatus: boolean) => {
@@ -677,6 +684,15 @@ export default function SuperAdminPanel() {
     e.preventDefault();
     setEditLoading(true);
     setEditError(null);
+    setEditOwnerEmailError(null);
+
+    // Validate owner email
+    const ownerEmailTrimmed = editForm.ownerEmail.trim();
+    if (ownerEmailTrimmed && !isValidEmail(ownerEmailTrimmed)) {
+      setEditOwnerEmailError('Please enter a valid email address.');
+      setEditLoading(false);
+      return;
+    }
 
     try {
       await api.patch(`/restaurants/${editingRestaurantId}`, {
@@ -718,6 +734,20 @@ export default function SuperAdminPanel() {
     e.preventDefault();
     setEditUserLoading(true);
     setEditUserError(null);
+    setEditUserEmailError(null);
+
+    // Validate email
+    const emailTrimmed = editUserForm.email.trim();
+    if (!emailTrimmed) {
+      setEditUserEmailError('Email address is required.');
+      setEditUserLoading(false);
+      return;
+    }
+    if (!isValidEmail(emailTrimmed)) {
+      setEditUserEmailError('Please enter a valid email address.');
+      setEditUserLoading(false);
+      return;
+    }
 
     try {
       await api.patch(`/users/${editingUserId}`, {
@@ -740,6 +770,23 @@ export default function SuperAdminPanel() {
     e.preventDefault();
     setOnboardLoading(true);
     setOnboardError(null);
+    setOnboardEmailErrors({});
+
+    // Validate email fields
+    const emailErrors: { ownerEmail?: string; adminEmail?: string } = {};
+    if (onboardForm.ownerEmail.trim() && !isValidEmail(onboardForm.ownerEmail)) {
+      emailErrors.ownerEmail = 'Please enter a valid email address.';
+    }
+    if (!onboardForm.adminEmail.trim()) {
+      emailErrors.adminEmail = 'Admin email is required.';
+    } else if (!isValidEmail(onboardForm.adminEmail)) {
+      emailErrors.adminEmail = 'Please enter a valid email address.';
+    }
+    if (Object.keys(emailErrors).length > 0) {
+      setOnboardEmailErrors(emailErrors);
+      setOnboardLoading(false);
+      return;
+    }
 
     try {
       // 1. Create Restaurant
@@ -1364,9 +1411,16 @@ export default function SuperAdminPanel() {
                             required
                             placeholder="vivek@tandoori.com"
                             value={onboardForm.ownerEmail}
-                            onChange={e => setOnboardForm({ ...onboardForm, ownerEmail: e.target.value })}
-                            className="bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50"
+                            onChange={e => { setOnboardForm({ ...onboardForm, ownerEmail: e.target.value }); if (onboardEmailErrors.ownerEmail) setOnboardEmailErrors(prev => ({ ...prev, ownerEmail: undefined })); }}
+                            className={`bg-slate-950 border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50 ${
+                              onboardEmailErrors.ownerEmail ? 'border-red-500/60' : 'border-slate-800'
+                            }`}
                           />
+                          {onboardEmailErrors.ownerEmail && (
+                            <p className="flex items-center gap-1 text-[10px] text-red-400 font-semibold mt-0.5">
+                              <AlertCircle className="w-3 h-3 shrink-0" /> {onboardEmailErrors.ownerEmail}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -1389,9 +1443,16 @@ export default function SuperAdminPanel() {
                             required
                             placeholder="admin@tandoori.com"
                             value={onboardForm.adminEmail}
-                            onChange={e => setOnboardForm({ ...onboardForm, adminEmail: e.target.value })}
-                            className="bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50"
+                            onChange={e => { setOnboardForm({ ...onboardForm, adminEmail: e.target.value }); if (onboardEmailErrors.adminEmail) setOnboardEmailErrors(prev => ({ ...prev, adminEmail: undefined })); }}
+                            className={`bg-slate-950 border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50 ${
+                              onboardEmailErrors.adminEmail ? 'border-red-500/60' : 'border-slate-800'
+                            }`}
                           />
+                          {onboardEmailErrors.adminEmail && (
+                            <p className="flex items-center gap-1 text-[10px] text-red-400 font-semibold mt-0.5">
+                              <AlertCircle className="w-3 h-3 shrink-0" /> {onboardEmailErrors.adminEmail}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1592,9 +1653,16 @@ export default function SuperAdminPanel() {
                         required
                         placeholder="vivek@tandoori.com"
                         value={editForm.ownerEmail}
-                        onChange={e => setEditForm({ ...editForm, ownerEmail: e.target.value })}
-                        className="bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50"
+                        onChange={e => { setEditForm({ ...editForm, ownerEmail: e.target.value }); if (editOwnerEmailError) setEditOwnerEmailError(null); }}
+                        className={`bg-slate-950 border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50 ${
+                          editOwnerEmailError ? 'border-red-500/60' : 'border-slate-800'
+                        }`}
                       />
+                      {editOwnerEmailError && (
+                        <p className="flex items-center gap-1 text-[10px] text-red-400 font-semibold mt-0.5">
+                          <AlertCircle className="w-3 h-3 shrink-0" /> {editOwnerEmailError}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col gap-1 mt-3">
@@ -1763,9 +1831,16 @@ export default function SuperAdminPanel() {
                     required
                     placeholder="admin@restaurant.com"
                     value={editUserForm.email}
-                    onChange={e => setEditUserForm({ ...editUserForm, email: e.target.value })}
-                    className="bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50"
+                    onChange={e => { setEditUserForm({ ...editUserForm, email: e.target.value }); if (editUserEmailError) setEditUserEmailError(null); }}
+                    className={`bg-slate-950 border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-primary/50 ${
+                      editUserEmailError ? 'border-red-500/60' : 'border-slate-800'
+                    }`}
                   />
+                  {editUserEmailError && (
+                    <p className="flex items-center gap-1 text-[10px] text-red-400 font-semibold mt-0.5">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> {editUserEmailError}
+                    </p>
+                  )}
                 </div>
 
                 {/* Form controls */}

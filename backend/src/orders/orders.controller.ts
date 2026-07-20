@@ -26,9 +26,11 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   async updateStatus(
     @Param('id') id: string,
-    @Body() body: UpdateOrderStatusDto
+    @Body() body: UpdateOrderStatusDto,
+    @Req() req: Request,
   ) {
-    return this.ordersService.updateOrderStatus(id, body.status);
+    const user = req.user as any;
+    return this.ordersService.updateOrderStatus(id, body.status, user?.role);
   }
 
   @Get('active')
@@ -45,5 +47,13 @@ export class OrdersController {
     const user = req.user as any;
     const restaurantId = user?.restaurantId;
     return this.ordersService.getDashboardStats(restaurantId);
+  }
+
+  @Get('completed')
+  @UseGuards(JwtAuthGuard)
+  async getCompleted(@Req() req: Request) {
+    const user = req.user as any;
+    const restaurantId = user?.restaurantId;
+    return this.ordersService.getCompletedOrdersToday(restaurantId);
   }
 }

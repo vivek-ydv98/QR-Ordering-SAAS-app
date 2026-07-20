@@ -52,4 +52,8 @@ export class UpdateMenuItemDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  externalImageUrl?: string;
 }

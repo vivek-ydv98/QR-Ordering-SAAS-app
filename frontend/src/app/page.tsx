@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Layers, ShoppingBag, Terminal, Users, Shield, ArrowRight, Zap, QrCode } from 'lucide-react';
+import Link from 'next/link';
+import { ROUTES } from '../lib/routes';
 
 export default function SaasProductHub() {
   const isDev = process.env.NODE_ENV !== 'production';
@@ -14,8 +16,8 @@ export default function SaasProductHub() {
       tag: 'Customer App',
       links: isDev
         ? [
-            { label: 'Preview Demo: Tandoori Palace', path: '/r/tandoori-palace/table/t3', color: 'bg-orange-500 hover:bg-orange-600' },
-            { label: 'Preview Demo: Veg Bite', path: '/r/veg-bite/table/v2', color: 'bg-emerald-500 hover:bg-emerald-600' },
+            { label: 'Preview Demo: Tandoori Palace', path: '/tandoori-palace/table/t3', color: 'bg-orange-500 hover:bg-orange-600' },
+            { label: 'Preview Demo: Veg Bite', path: '/veg-bite/table/v2', color: 'bg-emerald-500 hover:bg-emerald-600' },
           ]
         : [],
       devNote: !isDev ? 'Customers access this app by scanning a table QR code generated in the admin portal.' : null,
@@ -25,7 +27,7 @@ export default function SaasProductHub() {
       description: 'Back-office panel for managers. Track sales, manage orders, view active tables, and generate QR tables.',
       icon: Terminal,
       tag: 'Merchant App',
-      links: [{ label: 'Open Admin Portal', path: '/admin/dashboard', color: 'bg-blue-600 hover:bg-blue-700' }],
+      links: [{ label: 'Open Admin Portal', path: ROUTES.AUTH.LOGIN, color: 'bg-blue-600 hover:bg-blue-700' }],
       devNote: null,
     },
     {
@@ -33,7 +35,7 @@ export default function SaasProductHub() {
       description: 'Tablet & TV layout displaying kitchen tickets with elapsed visual severity colors and synthesized buzzers.',
       icon: Layers,
       tag: 'Kitchen App',
-      links: [{ label: 'Open Kitchen KDS', path: '/kitchen', color: 'bg-rose-600 hover:bg-rose-700' }],
+      links: [{ label: 'Open Kitchen KDS', path: ROUTES.AUTH.LOGIN, color: 'bg-rose-600 hover:bg-rose-700' }],
       devNote: null,
     },
     {
@@ -41,7 +43,7 @@ export default function SaasProductHub() {
       description: 'Quick assistance log. Track active tables, table cleaning statuses, and live guest chimes.',
       icon: Users,
       tag: 'Service App',
-      links: [{ label: 'Open Waiter Portal', path: '/waiter', color: 'bg-indigo-600 hover:bg-indigo-700' }],
+      links: [{ label: 'Open Waiter Portal', path: ROUTES.AUTH.LOGIN, color: 'bg-indigo-600 hover:bg-indigo-700' }],
       devNote: null,
     },
     {

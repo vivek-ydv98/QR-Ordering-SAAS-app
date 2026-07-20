@@ -21,7 +21,7 @@ async function main() {
 
   // Hash password for default users
   const salt = await bcrypt.genSalt(10);
-  const adminPasswordHash = await bcrypt.hash('Reset_xhjzc6bn', salt);
+  const adminPasswordHash = await bcrypt.hash('Password123', salt);
 
   // 2. Create Super Admin User (Not bound to any restaurant)
   const superAdmin = await prisma.user.create({
@@ -76,6 +76,7 @@ async function main() {
       cgstRate: 2.5,
       sgstRate: 2.5,
       serviceChargeRate: 5.0,
+      allowedFoodTypes: ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'],
     },
   });
   console.log('Created Restaurant Settings');
@@ -229,7 +230,7 @@ async function main() {
 
   // 11. Create Sample/Fake Orders for Dashboard
   console.log('Creating sample orders...');
-  
+
   // Update Table T1 status to OCCUPIED as well so Table Occupancy becomes 2 / 3
   await prisma.table.update({
     where: { id: t1.id },

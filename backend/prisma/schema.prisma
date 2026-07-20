@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -20,8 +21,6 @@ enum OrderStatus {
 enum TableStatus {
   VACANT
   OCCUPIED
-  WAITING_BILL
-  DIRTY
 }
 
 model Restaurant {
@@ -29,6 +28,7 @@ model Restaurant {
   name               String
   slug               String    @unique
   logoUrl            String?   @map("logo")
+  logoPublicId       String?   @map("logo_public_id")
   ownerName          String?   @map("owner_name")
   ownerEmail         String?   @map("owner_email")
   phone              String?
@@ -139,6 +139,7 @@ model MenuCategory {
   name         String
   description  String?
   imageUrl     String?   @map("image_url")
+  imagePublicId String?  @map("image_public_id")
   sortOrder    Int       @default(0) @map("sort_order")
   isAvailable  Boolean   @default(true) @map("is_available")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -167,8 +168,10 @@ model MenuItem {
   isAvailable   Boolean       @default(true) @map("is_available")
   isFeatured    Boolean       @default(false) @map("is_featured")
   isBestseller  Boolean       @default(false) @map("is_bestseller")
-  imageUrl      String?       @map("image_url")
-  createdAt     DateTime      @default(now()) @map("created_at")
+  imageUrl          String?       @map("image_url")
+  imagePublicId     String?       @map("image_public_id")
+  externalImageUrl  String?       @map("external_image_url")
+  createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
   deletedAt     DateTime?     @map("deleted_at")
 
@@ -217,9 +220,12 @@ model Order {
   kotNumber           String      @map("kot_number") // E.g., #1001
   status              OrderStatus @default(pending)
   subtotal            Decimal     @db.Decimal(10, 2)
-  cgst                Decimal     @db.Decimal(10, 2)
-  sgst                Decimal     @db.Decimal(10, 2)
-  serviceCharge       Decimal     @db.Decimal(10, 2) @map("service_charge")
+  cgst                Decimal?    @db.Decimal(10, 2)
+  sgst                Decimal?    @db.Decimal(10, 2)
+  serviceCharge       Decimal?    @db.Decimal(10, 2) @map("service_charge")
+  cgstRate            Decimal?    @map("cgst_rate") @db.Decimal(5, 2)
+  sgstRate            Decimal?    @map("sgst_rate") @db.Decimal(5, 2)
+  serviceChargeRate   Decimal?    @map("service_charge_rate") @db.Decimal(5, 2)
   grandTotal          Decimal     @db.Decimal(10, 2) @map("grand_total")
   specialInstructions String?     @map("special_instructions")
   createdAt           DateTime    @default(now()) @map("created_at")
@@ -276,12 +282,14 @@ model RestaurantSetting {
   isVegOnly         Boolean  @default(false) @map("is_veg_only")
   allowUpiPayments  Boolean  @default(true) @map("allow_upi_payments")
   allowWaiterCall   Boolean  @default(true) @map("allow_waiter_call")
-  cgstRate          Decimal  @default(2.5) @map("cgst_rate") @db.Decimal(5, 2)
-  sgstRate          Decimal  @default(2.5) @map("sgst_rate") @db.Decimal(5, 2)
-  serviceChargeRate Decimal  @default(5.0) @map("service_charge_rate") @db.Decimal(5, 2)
+  cgstRate          Decimal? @map("cgst_rate") @db.Decimal(5, 2)
+  sgstRate          Decimal? @map("sgst_rate") @db.Decimal(5, 2)
+  serviceChargeRate Decimal? @map("service_charge_rate") @db.Decimal(5, 2)
   qrFgColor         String   @default("#000000") @map("qr_fg_color")
   qrBgColor         String   @default("#ffffff") @map("qr_bg_color")
   qrLogoUrl         String?  @map("qr_logo_url")
+  qrLogoPublicId    String?  @map("qr_logo_public_id")
+  allowedFoodTypes  FoodType[] @default([VEG, NON_VEG, EGG, VEGAN, JAIN]) @map("allowed_food_types")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

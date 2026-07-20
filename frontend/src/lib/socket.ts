@@ -26,7 +26,7 @@ class SocketManager {
     }
 
     this.isConnecting = true;
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'https://api.qr-ordering.in';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
 
     this.socket = io(socketUrl, {
       autoConnect: false,

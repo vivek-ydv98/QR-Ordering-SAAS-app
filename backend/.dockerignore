@@ -1,0 +1,39 @@
+# =========================================================
+# Backend .dockerignore
+# =========================================================
+
+# Secrets & local config
+.env
+.env.*
+!.env.example
+
+# Large directories that are rebuilt inside the container
+node_modules/
+dist/
+
+# Prisma dev/debug scripts (not needed at runtime)
+prisma/list-users.js
+prisma/reset-passwords.js
+
+# Tests
+tests/
+jest.config.ts
+
+# Logs
+*.log
+logs/
+
+# IDE / OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Local docs
+*.md

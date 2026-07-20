@@ -221,4 +221,30 @@
   animation: infinite-slide 1.5s infinite ease-in-out;
 }
 
+/* Profile Page Custom Animations */
+@keyframes hue-spin {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+.animate-hue-spin { animation: hue-spin 6s linear infinite; }
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+.animate-status-pulse { animation: status-pulse 2s ease-in-out infinite; }
+
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-toast-in { animation: toast-slide-in 0.3s ease forwards; }
+
+@keyframes profile-shimmer {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.8; }
+}
+.animate-profile-shimmer { animation: profile-shimmer 1.6s ease-in-out infinite; }
+
+
 

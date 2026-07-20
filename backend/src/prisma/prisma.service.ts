@@ -16,7 +16,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   constructor() {
     this.prismaInstance = new PrismaClient({
-      log: ['query', 'info', 'warn', 'error'],
+      log: process.env.NODE_ENV === 'production'
+        ? ['warn', 'error']
+        : ['query', 'info', 'warn', 'error'],
     });
 
     this.client = this.prismaInstance.$extends({

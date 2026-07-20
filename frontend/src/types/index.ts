@@ -1,4 +1,4 @@
-export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'SERVED' | 'COMPLETED' | 'CANCELLED';
 
 export type WaiterRequestType = 'water' | 'bill' | 'service' | 'cutlery';
 
@@ -15,10 +15,11 @@ export interface TenantConfig {
   isVegOnly: boolean;
   allowUpiPayments: boolean;
   allowWaiterCall: boolean;
+  allowedFoodTypes: ('VEG' | 'NON_VEG' | 'EGG' | 'VEGAN' | 'JAIN')[];
   taxRates: {
-    cgst: number; // percentage
-    sgst: number; // percentage
-    serviceCharge: number; // percentage
+    cgst: number | null; // percentage or null
+    sgst: number | null; // percentage or null
+    serviceCharge: number | null; // percentage or null
   };
 }
 
@@ -52,8 +53,11 @@ export interface MenuItem {
   description: string;
   price: number;
   isVeg: boolean;
+  foodType: 'VEG' | 'NON_VEG' | 'EGG' | 'VEGAN' | 'JAIN';
   isAvailable: boolean;
   imageUrl?: string;
+  imagePublicId?: string;
+  externalImageUrl?: string;
   categoryId: string;
   customizationGroups: CustomizationGroup[];
 }
@@ -87,13 +91,14 @@ export interface CartItem {
 export interface Table {
   id: string;
   name: string; // e.g. "Table 3" or "T3"
-  status: 'VACANT' | 'OCCUPIED' | 'WAITING_BILL' | 'DIRTY';
+  status: 'VACANT' | 'OCCUPIED';
   currentSessionId?: string;
 }
 
 export interface KOTItem {
   name: string;
   quantity: number;
+  price?: number;
   isVeg: boolean;
   customizations: string[]; // Formatted customizations text, e.g., "Extra Cheese, Large"
 }
@@ -108,6 +113,14 @@ export interface KOT {
   status: OrderStatus;
   items: KOTItem[];
   specialInstructions?: string;
+  subtotal?: number;
+  cgst?: number | null;
+  sgst?: number | null;
+  serviceCharge?: number | null;
+  cgstRate?: number | null;
+  sgstRate?: number | null;
+  serviceChargeRate?: number | null;
+  grandTotal?: number;
 }
 
 export interface WaiterCall {

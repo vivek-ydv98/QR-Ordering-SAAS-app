@@ -21,14 +21,14 @@ interface CartState {
   updateQuantity: (cartItemId: string, delta: number) => void;
   clearCart: () => void;
   getTotals: (taxRates: {
-    cgst: number;
-    sgst: number;
-    serviceCharge: number;
+    cgst: number | null;
+    sgst: number | null;
+    serviceCharge: number | null;
   }) => {
     subtotal: number;
-    cgst: number;
-    sgst: number;
-    serviceCharge: number;
+    cgst: number | null;
+    sgst: number | null;
+    serviceCharge: number | null;
     grandTotal: number;
   };
 }
@@ -78,10 +78,10 @@ export const useCartStore = create<CartState>()(
           return acc + itemPrice * item.quantity;
         }, 0);
 
-        const cgst = subtotal * (taxRates.cgst / 100);
-        const sgst = subtotal * (taxRates.sgst / 100);
-        const serviceCharge = subtotal * (taxRates.serviceCharge / 100);
-        const grandTotal = subtotal + cgst + sgst + serviceCharge;
+        const cgst = taxRates.cgst !== null ? subtotal * (taxRates.cgst / 100) : null;
+        const sgst = taxRates.sgst !== null ? subtotal * (taxRates.sgst / 100) : null;
+        const serviceCharge = taxRates.serviceCharge !== null ? subtotal * (taxRates.serviceCharge / 100) : null;
+        const grandTotal = subtotal + (cgst ?? 0) + (sgst ?? 0) + (serviceCharge ?? 0);
 
         return {
           subtotal,

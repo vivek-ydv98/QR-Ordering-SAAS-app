@@ -26,7 +26,7 @@ export const TenantProvider: React.FC<{
 
     const loadTenant = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.qr-ordering.in/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/v1';
         const res = await fetch(`${apiUrl}/restaurants/${tenantSlug}`);
 
         if (!res.ok) {
@@ -54,10 +54,11 @@ export const TenantProvider: React.FC<{
             isVegOnly: data.restaurantSettings?.isVegOnly ?? false,
             allowUpiPayments: data.restaurantSettings?.allowUpiPayments ?? true,
             allowWaiterCall: data.restaurantSettings?.allowWaiterCall ?? true,
+            allowedFoodTypes: data.restaurantSettings?.allowedFoodTypes ?? ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'],
             taxRates: {
-              cgst: Number(data.restaurantSettings?.cgstRate ?? 2.5),
-              sgst: Number(data.restaurantSettings?.sgstRate ?? 2.5),
-              serviceCharge: Number(data.restaurantSettings?.serviceChargeRate ?? 0),
+              cgst: data.restaurantSettings?.cgstRate === null ? null : Number(data.restaurantSettings?.cgstRate ?? 2.5),
+              sgst: data.restaurantSettings?.sgstRate === null ? null : Number(data.restaurantSettings?.sgstRate ?? 2.5),
+              serviceCharge: data.restaurantSettings?.serviceChargeRate === null ? null : Number(data.restaurantSettings?.serviceChargeRate ?? 5.0),
             },
           },
         };

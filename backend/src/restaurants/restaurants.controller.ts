@@ -48,8 +48,16 @@ export class RestaurantsController {
   // ─── READ ENDPOINTS ───────────────────────────────────────────────────────────
 
   @Get('tables/by-id/:tableId')
-  getTableById(@Param('tableId') tableId: string) {
-    return this.restaurantsService.getTableById(tableId);
+  getTableById(
+    @Param('tableId') tableId: string,
+    @Query('restaurant') restaurant?: string,
+  ) {
+    return this.restaurantsService.getTableById(tableId, restaurant);
+  }
+
+  @Get(':restaurantId/waiter-calls')
+  getWaiterCalls(@Param('restaurantId') restaurantId: string) {
+    return this.restaurantsService.getWaiterCalls(restaurantId);
   }
 
   @Get(':slug')
@@ -78,67 +86,6 @@ export class RestaurantsController {
   @Get(':restaurantId/tables')
   getTables(@Param('restaurantId') restaurantId: string) {
     return this.restaurantsService.getTables(restaurantId);
-  }
-
-  // ─── CATEGORY ENDPOINTS ───────────────────────────────────────────────────────
-
-  @Post(':restaurantId/categories')
-  createCategory(
-    @Param('restaurantId') restaurantId: string,
-    @Body() body: { name: string; sortOrder?: number },
-  ) {
-    return this.restaurantsService.createCategory(restaurantId, body.name, body.sortOrder);
-  }
-
-  @Patch('categories/:categoryId')
-  updateCategory(
-    @Param('categoryId') categoryId: string,
-    @Body() body: { name?: string; sortOrder?: number; isAvailable?: boolean },
-  ) {
-    return this.restaurantsService.updateCategory(categoryId, body);
-  }
-
-  @Delete('categories/:categoryId')
-  deleteCategory(@Param('categoryId') categoryId: string) {
-    return this.restaurantsService.deleteCategory(categoryId);
-  }
-
-  // ─── MENU ITEM ENDPOINTS ──────────────────────────────────────────────────────
-
-  @Post(':restaurantId/menu-items')
-  createMenuItem(
-    @Param('restaurantId') restaurantId: string,
-    @Body() body: {
-      categoryId: string;
-      name: string;
-      description: string;
-      price: number;
-      isVeg?: boolean;
-      imageUrl?: string;
-    },
-  ) {
-    return this.restaurantsService.createMenuItem(restaurantId, body);
-  }
-
-  @Patch('menu-items/:itemId')
-  updateMenuItem(
-    @Param('itemId') itemId: string,
-    @Body() body: {
-      categoryId?: string;
-      name?: string;
-      description?: string;
-      price?: number;
-      isVeg?: boolean;
-      isAvailable?: boolean;
-      imageUrl?: string;
-    },
-  ) {
-    return this.restaurantsService.updateMenuItem(itemId, body);
-  }
-
-  @Delete('menu-items/:itemId')
-  deleteMenuItem(@Param('itemId') itemId: string) {
-    return this.restaurantsService.deleteMenuItem(itemId);
   }
 
   // ─── TABLE MANAGEMENT ENDPOINTS ────────────────────────────────────────────────
@@ -176,5 +123,29 @@ export class RestaurantsController {
   @Roles('SUPER_ADMIN')
   regenerateQrCodes(@Param('restaurantId') restaurantId: string) {
     return this.restaurantsService.bulkRegenerateQrCodes(restaurantId);
+  }
+
+  @Get('settings/me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('RESTAURANT_ADMIN', 'MANAGER')
+  getSettings(@Req() req: Request) {
+    const user = req['user'] as any;
+    return this.restaurantsService.getRestaurantSettings(user.restaurantId);
+  }
+
+  @Patch('settings/me')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('RESTAURANT_ADMIN', 'MANAGER')
+  updateSettings(
+    @Req() req: Request,
+    @Body() body: { 
+      cgstRate?: number | null; 
+      sgstRate?: number | null; 
+      serviceChargeRate?: number | null;
+      allowedFoodTypes?: any[];
+    },
+  ) {
+    const user = req['user'] as any;
+    return this.restaurantsService.updateRestaurantSettings(user.restaurantId, body);
   }
 }

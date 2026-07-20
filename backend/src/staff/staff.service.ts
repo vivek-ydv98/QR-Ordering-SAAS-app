@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 
@@ -35,8 +36,13 @@ export class StaffService {
     });
   }
 
-  async create(createStaffDto: CreateStaffDto) {
+  async create(createStaffDto: CreateStaffDto, currentUserRole?: string) {
     const { email, fullName, role, password, isAvailable } = createStaffDto;
+
+    // 0. Prevent MANAGER from creating another MANAGER
+    if (currentUserRole === 'MANAGER' && role === 'MANAGER') {
+      throw new ForbiddenException('Managers cannot create other manager accounts');
+    }
 
     // 1. Verify email is unique globally (User is not tenant-scoped, so query rawClient)
     const existingUser = await this.prisma.rawClient.user.findUnique({
@@ -48,7 +54,7 @@ export class StaffService {
     }
 
     // 2. Generate/hash password
-    const tempPassword = password || `Temp_${Math.random().toString(36).substring(2, 10)}`;
+    const tempPassword = password || randomBytes(12).toString('base64url');
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 
@@ -236,7 +242,7 @@ export class StaffService {
       throw new NotFoundException(`Staff record with ID "${id}" not found`);
     }
 
-    const tempPassword = explicitPassword || `Reset_${Math.random().toString(36).substring(2, 10)}`;
+    const tempPassword = explicitPassword || randomBytes(12).toString('base64url');
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 

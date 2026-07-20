@@ -2,10 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TableStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '../common/errors/app-error';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class RestaurantsService {
-  constructor(private readonly prisma: PrismaService) { }
+  private activeWaiterCalls = new Map<string, any[]>();
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) { }
 
   /**
    * Fetch all onboarded restaurants for Super Admin
@@ -118,6 +124,7 @@ export class RestaurantsService {
         cgstRate: 2.5,
         sgstRate: 2.5,
         serviceChargeRate: 5.0,
+        allowedFoodTypes: ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'],
       },
     });
 
@@ -147,6 +154,7 @@ export class RestaurantsService {
     subscriptionStatus?: string;
     isActive?: boolean;
     maxTables?: number;
+    logoPublicId?: string | null;
     qrFgColor?: string;
     qrBgColor?: string;
     qrLogoUrl?: string;
@@ -157,6 +165,11 @@ export class RestaurantsService {
 
     if (!restaurant) {
       throw new NotFoundError(`Restaurant with ID "${id}" not found`);
+    }
+
+    // Delete old Cloudinary logo if being replaced
+    if (data.logoPublicId && restaurant.logoPublicId && data.logoPublicId !== restaurant.logoPublicId) {
+      await this.cloudinaryService.deleteImage(restaurant.logoPublicId);
     }
 
     const { qrFgColor, qrBgColor, qrLogoUrl, ...rest } = data;
@@ -243,13 +256,25 @@ export class RestaurantsService {
 
   async getMenu(slugOrId: string, includeUnavailable = false) {
     const restaurantId = await this.resolveRestaurantId(slugOrId);
+    const settings = await this.prisma.rawClient.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    const allowedFoodTypes = settings?.allowedFoodTypes ?? ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'];
+
     return this.prisma.rawClient.menuCategory.findMany({
       where: { restaurantId, ...(includeUnavailable ? {} : { isAvailable: true }) },
       orderBy: { sortOrder: 'asc' },
       include: {
         menuItems: {
-          where: includeUnavailable ? {} : { isAvailable: true },
+          where: {
+            ...(includeUnavailable ? {} : { isAvailable: true }),
+            foodType: { in: allowedFoodTypes },
+          },
           orderBy: { name: 'asc' },
+          include: {
+            variants: true,
+            addons: true,
+          },
         },
       },
     });
@@ -261,79 +286,6 @@ export class RestaurantsService {
       where: { restaurantId },
       orderBy: { name: 'asc' },
     });
-  }
-
-  // ─── CATEGORY MANAGEMENT ─────────────────────────────────────────────────────
-
-  async createCategory(restaurantId: string, name: string, sortOrder = 0) {
-    return this.prisma.client.menuCategory.create({
-      data: { restaurantId, name, sortOrder, isAvailable: true },
-    });
-  }
-
-  async updateCategory(
-    categoryId: string,
-    data: { name?: string; sortOrder?: number; isAvailable?: boolean },
-  ) {
-    return this.prisma.client.menuCategory.update({
-      where: { id: categoryId },
-      data,
-    });
-  }
-
-  async deleteCategory(categoryId: string) {
-    // Cascade to menu items first (in case DB doesn't cascade)
-    await this.prisma.client.menuItem.deleteMany({ where: { categoryId } });
-    return this.prisma.client.menuCategory.delete({ where: { id: categoryId } });
-  }
-
-  // ─── MENU ITEM MANAGEMENT ─────────────────────────────────────────────────────
-
-  async createMenuItem(
-    restaurantId: string,
-    data: {
-      categoryId: string;
-      name: string;
-      description: string;
-      price: number;
-      isVeg?: boolean;
-      imageUrl?: string;
-    },
-  ) {
-    return this.prisma.client.menuItem.create({
-      data: {
-        restaurantId,
-        categoryId: data.categoryId,
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        isVeg: data.isVeg ?? true,
-        isAvailable: true,
-        imageUrl: data.imageUrl ?? null,
-      },
-    });
-  }
-
-  async updateMenuItem(
-    itemId: string,
-    data: {
-      categoryId?: string;
-      name?: string;
-      description?: string;
-      price?: number;
-      isVeg?: boolean;
-      isAvailable?: boolean;
-      imageUrl?: string;
-    },
-  ) {
-    return this.prisma.client.menuItem.update({
-      where: { id: itemId },
-      data,
-    });
-  }
-
-  async deleteMenuItem(itemId: string) {
-    return this.prisma.client.menuItem.delete({ where: { id: itemId } });
   }
 
   // ─── TABLE MANAGEMENT ────────────────────────────────────────────────────────
@@ -375,14 +327,58 @@ export class RestaurantsService {
     });
   }
 
-  async getTableById(tableId: string) {
-    const table = await this.prisma.client.table.findUnique({
-      where: { id: tableId },
+  async getTableById(tableId: string, restaurantIdOrSlug?: string) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(tableId)) {
+      const table = await this.prisma.client.table.findUnique({
+        where: { id: tableId },
+      });
+      if (!table) {
+        throw new NotFoundError(`Table with ID "${tableId}" not found.`);
+      }
+      return table;
+    }
+
+    if (!restaurantIdOrSlug) {
+      throw new ValidationError('Restaurant identifier required to look up table by name.', 'restaurantId');
+    }
+
+    let rId: string;
+    try {
+      rId = await this.resolveRestaurantId(restaurantIdOrSlug);
+    } catch {
+      throw new NotFoundError(`Restaurant "${restaurantIdOrSlug}" not found.`);
+    }
+
+    const table = await this.prisma.client.table.findFirst({
+      where: {
+        restaurantId: rId,
+        name: {
+          equals: tableId,
+          mode: 'insensitive',
+        },
+      },
     });
+
     if (!table) {
-      throw new NotFoundError(`Table with ID "${tableId}" not found.`);
+      throw new NotFoundError(`Table "${tableId}" not found for restaurant.`);
     }
     return table;
+  }
+
+  addWaiterCall(tenantId: string, callPayload: any) {
+    const calls = this.activeWaiterCalls.get(tenantId) || [];
+    calls.push(callPayload);
+    this.activeWaiterCalls.set(tenantId, calls);
+  }
+
+  resolveWaiterCall(tenantId: string, callId: string) {
+    const calls = this.activeWaiterCalls.get(tenantId) || [];
+    this.activeWaiterCalls.set(tenantId, calls.filter(c => c.id !== callId));
+  }
+
+  getWaiterCalls(tenantId: string) {
+    return this.activeWaiterCalls.get(tenantId) || [];
   }
 
   async deleteTable(tableId: string) {
@@ -437,6 +433,91 @@ export class RestaurantsService {
     return this.prisma.client.table.updateMany({
       where: { restaurantId },
       data: { qrCodeUrl: null },
+    });
+  }
+
+  async getRestaurantSettings(restaurantId: string) {
+    const restaurant = await this.prisma.client.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, name: true, logoUrl: true, logoPublicId: true },
+    });
+    if (!restaurant) {
+      throw new NotFoundError(`Restaurant with ID "${restaurantId}" not found.`);
+    }
+
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    if (!settings) {
+      throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
+    }
+
+    return {
+      ...settings,
+      restaurantName: restaurant.name,
+      logoUrl: restaurant.logoUrl,
+      logoPublicId: restaurant.logoPublicId,
+    };
+  }
+
+  async updateRestaurantSettings(
+    restaurantId: string,
+    data: { 
+      cgstRate?: number | null; 
+      sgstRate?: number | null; 
+      serviceChargeRate?: number | null;
+      allowedFoodTypes?: any[];
+    }
+  ) {
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    if (!settings) {
+      throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
+    }
+
+    if (data.allowedFoodTypes !== undefined) {
+      if (!Array.isArray(data.allowedFoodTypes) || data.allowedFoodTypes.length === 0) {
+        throw new ValidationError('At least one food type must be allowed.', 'allowedFoodTypes');
+      }
+      const validTypes = ['VEG', 'NON_VEG', 'EGG', 'VEGAN', 'JAIN'];
+      const invalid = data.allowedFoodTypes.filter(t => !validTypes.includes(t));
+      if (invalid.length > 0) {
+        throw new ValidationError(`Invalid food type(s): ${invalid.join(', ')}`, 'allowedFoodTypes');
+      }
+    }
+
+    return this.prisma.client.restaurantSetting.update({
+      where: { restaurantId },
+      data: {
+        cgstRate: data.cgstRate === null || data.cgstRate === undefined ? null : data.cgstRate,
+        sgstRate: data.sgstRate === null || data.sgstRate === undefined ? null : data.sgstRate,
+        serviceChargeRate: data.serviceChargeRate === null || data.serviceChargeRate === undefined ? null : data.serviceChargeRate,
+        ...(data.allowedFoodTypes !== undefined && { allowedFoodTypes: data.allowedFoodTypes }),
+      },
+    });
+  }
+
+  async updateRestaurantSettingsQrLogo(
+    restaurantId: string,
+    qrLogoUrl: string,
+    qrLogoPublicId: string,
+  ) {
+    const settings = await this.prisma.client.restaurantSetting.findUnique({
+      where: { restaurantId },
+    });
+    if (!settings) {
+      throw new NotFoundError(`Settings for restaurant ID "${restaurantId}" not found.`);
+    }
+
+    // Delete old QR logo from Cloudinary if it exists
+    if (settings.qrLogoPublicId) {
+      await this.cloudinaryService.deleteImage(settings.qrLogoPublicId);
+    }
+
+    return this.prisma.client.restaurantSetting.update({
+      where: { restaurantId },
+      data: { qrLogoUrl, qrLogoPublicId },
     });
   }
 }

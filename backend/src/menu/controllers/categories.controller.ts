@@ -18,7 +18,7 @@ export class CategoriesController {
   }
 
   @Get()
-  @Roles('RESTAURANT_ADMIN', 'MANAGER')
+  @Roles('RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER')
   findAll() {
     return this.categoriesService.findAll();
   }
@@ -30,7 +30,7 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  @Roles('RESTAURANT_ADMIN', 'MANAGER')
+  @Roles('RESTAURANT_ADMIN', 'MANAGER', 'CASHIER', 'KITCHEN_STAFF', 'WAITER')
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(id);
   }

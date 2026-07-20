@@ -4,7 +4,9 @@
 .env
 .env.local
 .env.*
+.env.docker
 !.env.example
+!.env.docker.example
 
 # ========================
 # Dependencies
