@@ -1,0 +1,44 @@
+# =============================================================================
+# Render Deployment Blueprint (Infrastructure as Code)
+#
+# Declares the NestJS Backend Web Service using Docker.
+# Setup: Upload repository to GitHub, go to Render dashboard, click Blueprints,
+# and select this repository.
+# =============================================================================
+
+services:
+  - type: web
+    name: qr-ordering-backend
+    env: docker
+    dockerContext: backend
+    dockerfilePath: Dockerfile
+    plan: starter
+    port: 3001
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 3001
+
+      # Database URLs must be supplied during deployment
+      - key: DATABASE_URL
+        sync: false
+
+      - key: DIRECT_URL
+        sync: false
+
+      # Generates a random secure key for JWT signing automatically
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: JWT_EXPIRATION
+        value: 15m
+
+      # Your frontend Vercel domain (e.g. https://yourdomain.vercel.app)
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+      # Cloudinary URL for media upload
+      - key: CLOUDINARY_URL
+        sync: false
